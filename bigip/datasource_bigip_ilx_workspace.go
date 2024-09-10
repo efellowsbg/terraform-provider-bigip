@@ -51,13 +51,13 @@ func dataSourceBigIPILXWorkspace() *schema.Resource {
 			"rules": {
 				Type:        schema.TypeList,
 				Computed:    true,
-				Description: "The directory of the ILX Workspace",
+				Description: "The rule names inside the ILX Workspace",
 				Elem:        ruleSchema(),
 			},
 			"extensions": {
 				Type:        schema.TypeList,
 				Computed:    true,
-				Description: "The directory of the ILX Workspace",
+				Description: "The extensions inside the ILX Workspace",
 				Elem:        extensionSchema(),
 			},
 		},
@@ -67,7 +67,7 @@ func dataSourceBigIPILXWorkspace() *schema.Resource {
 func dataSourceBigIPILXWorkspaceRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	client := m.(*bigip.BigIP)
 	log.Printf("[INFO] Retrieving ILX Workspace %s", d.Get("name").(string))
-	spc, err := client.GetWorkspace(d.Get("name").(string))
+	spc, err := client.GetWorkspace(ctx, d.Get("name").(string))
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -79,7 +79,6 @@ func dataSourceBigIPILXWorkspaceRead(ctx context.Context, d *schema.ResourceData
 	log.Println("[INFO] Retrieved ILX Workspace")
 	d.SetId(spc.FullPath)
 	return nil
-
 }
 
 func setILXWorkspaceResourceData(d *schema.ResourceData, spc *bigip.ILXWorkspace) diag.Diagnostics {
@@ -150,6 +149,7 @@ func extensionSchema() *schema.Resource {
 func ruleSchema() *schema.Resource {
 	return fileSchema()
 }
+
 func fileSchema() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
@@ -159,8 +159,8 @@ func fileSchema() *schema.Resource {
 			},
 		},
 	}
-
 }
+
 func flattenExtensions(extensions []bigip.Extension) []map[string]any {
 	if extensions == nil {
 		return []map[string]any{}

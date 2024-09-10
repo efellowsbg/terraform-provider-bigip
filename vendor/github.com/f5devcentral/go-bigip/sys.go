@@ -283,38 +283,41 @@ func (p *LogPublisher) UnmarshalJSON(b []byte) error {
 }
 
 const (
-	uriSys             = "sys"
-	uriTm              = "tm"
-	uriCli             = "cli"
-	uriUtil            = "util"
-	uriBash            = "bash"
-	uriVersion         = "version"
-	uriNtp             = "ntp"
-	uriDNS             = "dns"
-	uriProvision       = "provision"
-	uriAfm             = "afm"
-	uriAsm             = "asm"
-	uriApm             = "apm"
-	uriAvr             = "avr"
-	uriAuth            = "auth"
-	uriPartition       = "partition"
-	uriFolder          = "folder"
-	uriIlx             = "ilx"
-	uriSyslog          = "syslog"
-	uriSnmp            = "snmp"
-	uriTraps           = "traps"
-	uriLicense         = "license"
-	uriLogConfig       = "logConfig"
-	uriDestination     = "destination"
-	uriIPFIX           = "ipfix"
-	uriPublisher       = "publisher"
-	uriFile            = "file"
-	uriSslCert         = "ssl-cert"
-	uriSslKey          = "ssl-key"
-	uriDataGroup       = "data-group"
-	uriTransaction     = "transaction"
-	uriWorkspace       = "workspace"
-	REST_DOWNLOAD_PATH = "/var/config/rest/downloads"
+	uriSys                = "sys"
+	uriTm                 = "tm"
+	uriCli                = "cli"
+	uriUtil               = "util"
+	uriBash               = "bash"
+	uriVersion            = "version"
+	uriNtp                = "ntp"
+	uriDNS                = "dns"
+	uriProvision          = "provision"
+	uriAfm                = "afm"
+	uriAsm                = "asm"
+	uriApm                = "apm"
+	uriAvr                = "avr"
+	uriAuth               = "auth"
+	uriPartition          = "partition"
+	uriFolder             = "folder"
+	uriIlx                = "ilx"
+	uriSyslog             = "syslog"
+	uriResource           = "resource"
+	uriWebtop             = "webtop"
+	uriSnmp               = "snmp"
+	uriTraps              = "traps"
+	uriLicense            = "license"
+	uriLogConfig          = "logConfig"
+	uriDestination        = "destination"
+	uriIPFIX              = "ipfix"
+	uriPublisher          = "publisher"
+	uriFile               = "file"
+	uriSslCert            = "ssl-cert"
+	uriSslKey             = "ssl-key"
+	uriDataGroup          = "data-group"
+	uriTransaction        = "transaction"
+	uriWorkspace          = "workspace"
+	REST_DOWNLOAD_PATH    = "/var/config/rest/downloads"
+	WORKSPACE_UPLOAD_PATH = "/var/ilx/workspaces"
 )
 
 // Certificates represents a list of installed SSL certificates.
@@ -669,7 +672,6 @@ func (b *BigIP) CreateProvision(name string, fullPath string, cpuRatio int, disk
 	}
 	if name == "afm" {
 		return b.put(config, uriSys, uriProvision, uriAfm)
-
 	}
 	if name == "gtm" {
 		return b.put(config, uriSys, uriProvision, uriGtm)
@@ -835,7 +837,6 @@ func (b *BigIP) StartTransaction() (*Transaction, error) {
 	b.Transaction = ""
 	body := make(map[string]interface{})
 	resp, err := b.postReq(body, uriMgmt, uriTm, uriTransaction)
-
 	if err != nil {
 		return nil, fmt.Errorf("error encountered while starting transaction: %v", err)
 	}
@@ -1052,7 +1053,6 @@ func (b *BigIP) GetOCSP(name string) (*OCSP, error) {
 	}
 
 	js, err := json.Marshal(ocsp)
-
 	if err != nil {
 		return nil, fmt.Errorf("error encountered while marshalling ocsp: %v", err)
 	}

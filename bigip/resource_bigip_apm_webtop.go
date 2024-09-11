@@ -144,26 +144,8 @@ func resourceBigIPAPMWebtopRead(ctx context.Context, d *schema.ResourceData, m i
 
 func resourceBigIPAPMWebtopCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	client := m.(*bigip.BigIP)
-	webtop := &bigip.Webtop{
-		Name:        d.Get("name").(string),
-		TMPartition: d.Get("tm_partition").(string),
-		Partition:   d.Get("partition").(string),
-		WebtopConfig: bigip.WebtopConfig{
-			Description:        d.Get("description").(string),
-			CustomizationGroup: d.Get("customization_group").(string),
-			InitialState:       d.Get("initial_state").(bigip.InitialState),
-			CustomizationType:  d.Get("customization_type").(bigip.CustomizationType),
-			LinkType:           d.Get("link_type").(bigip.LinkType),
-			Type:               d.Get("type").(bigip.WebtopType),
-			ShowSearch:         d.Get("show_search").(bigip.BooledString),
-			WarningOnClose:     d.Get("warning_on_close").(bigip.BooledString),
-			UrlEntryField:      d.Get("url_entry_field").(bigip.BooledString),
-			ResourceSearch:     d.Get("resource_search").(bigip.BooledString),
-			MinimizeToTray:     d.Get("minimize_to_tray").(bigip.BooledString),
-			LocationSpecific:   d.Get("location_specific").(bigip.BooledString),
-		},
-	}
-	err := client.CreateWebtop(ctx, *webtop)
+	webtop := getWebtop(d)
+	err := client.CreateWebtop(ctx, webtop)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("error creating webtop %w", err))
 	}
@@ -173,22 +155,7 @@ func resourceBigIPAPMWebtopCreate(ctx context.Context, d *schema.ResourceData, m
 
 func resourceBigIPAPMWebtopUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	client := m.(*bigip.BigIP)
-	webtop := &bigip.Webtop{
-		WebtopConfig: bigip.WebtopConfig{
-			Description:        d.Get("description").(string),
-			CustomizationGroup: d.Get("customization_group").(string),
-			InitialState:       d.Get("initial_state").(bigip.InitialState),
-			CustomizationType:  d.Get("customization_type").(bigip.CustomizationType),
-			LinkType:           d.Get("link_type").(bigip.LinkType),
-			Type:               d.Get("type").(bigip.WebtopType),
-			ShowSearch:         d.Get("show_search").(bigip.BooledString),
-			WarningOnClose:     d.Get("warning_on_close").(bigip.BooledString),
-			UrlEntryField:      d.Get("url_entry_field").(bigip.BooledString),
-			ResourceSearch:     d.Get("resource_search").(bigip.BooledString),
-			MinimizeToTray:     d.Get("minimize_to_tray").(bigip.BooledString),
-			LocationSpecific:   d.Get("location_specific").(bigip.BooledString),
-		},
-	}
+	webtop := getWebtop(d)
 	err := client.ModifyWebtop(ctx, webtop.Name, webtop.WebtopConfig)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("error updating webtop %w", err))
@@ -205,4 +172,30 @@ func resourceBigIPAPMWebtopDelete(ctx context.Context, d *schema.ResourceData, m
 	}
 	d.SetId("")
 	return nil
+}
+
+func getWebtop(d *schema.ResourceData) bigip.Webtop {
+	return bigip.Webtop{
+		Name:         d.Get("name").(string),
+		TMPartition:  d.Get("tm_partition").(string),
+		Partition:    d.Get("partition").(string),
+		WebtopConfig: getWebtopConfig(d),
+	}
+}
+
+func getWebtopConfig(d *schema.ResourceData) bigip.WebtopConfig {
+	return bigip.WebtopConfig{
+		Description:        d.Get("description").(string),
+		CustomizationGroup: d.Get("customization_group").(string),
+		InitialState:       bigip.InitialState(d.Get("initial_state").(string)),
+		CustomizationType:  bigip.CustomizationType(d.Get("customization_type").(string)),
+		LinkType:           bigip.LinkType(d.Get("link_type").(string)),
+		Type:               bigip.WebtopType(d.Get("type").(string)),
+		ShowSearch:         bigip.BooledString(d.Get("show_search").(bool)),
+		WarningOnClose:     bigip.BooledString(d.Get("warning_on_close").(bool)),
+		UrlEntryField:      bigip.BooledString(d.Get("url_entry_field").(bool)),
+		ResourceSearch:     bigip.BooledString(d.Get("resource_search").(bool)),
+		MinimizeToTray:     bigip.BooledString(d.Get("minimize_to_tray").(bool)),
+		LocationSpecific:   bigip.BooledString(d.Get("location_specific").(bool)),
+	}
 }

@@ -196,6 +196,7 @@ func Provider() *schema.Provider {
 			"bigip_ltm_profile_rewrite":             resourceBigipLtmRewriteProfile(),
 			"bigip_ltm_profile_rewrite_uri_rules":   resourceBigipLtmRewriteProfileUriRules(),
 			"bigip_ilx_workspace":                   resourceBigIPILXWorkspace(),
+			"bigip_apm_webtop":                      resourceBigIPAPMWebtop(),
 		},
 	}
 	p.ConfigureContextFunc = func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {

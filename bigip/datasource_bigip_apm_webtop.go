@@ -94,7 +94,7 @@ func dataSourceBigIPAPMWebtopRead(ctx context.Context, d *schema.ResourceData, m
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	diag := setAPMWebtopResourceData(d, webtop)
+	diag := setAPMWebtopResourceData(d, *webtop)
 	if diag != nil {
 		d.SetId("")
 		return diag

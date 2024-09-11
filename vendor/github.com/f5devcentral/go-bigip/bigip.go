@@ -226,7 +226,7 @@ func NewTokenSession(bigipConfig *Config) (b *BigIP, err error) {
 
 	b.Token = aresp.Token.Token
 
-	//Once we have obtained a token, we should actually apply the configured timeout to it
+	// Once we have obtained a token, we should actually apply the configured timeout to it
 	if time.Duration(aresp.Timeout.Timeout)*time.Second != bigipConfig.ConfigOptions.TokenTimeout { // The inital value is the max timespan
 		timeout := timeoutReq{
 			int64(bigipConfig.ConfigOptions.TokenTimeout.Seconds()),
@@ -337,7 +337,7 @@ func (b *BigIP) APICall(options *APIRequest) ([]byte, error) {
 			} else {
 				return data, fmt.Errorf("HTTP %d :: %s", res.StatusCode, string(data[:]))
 			}
-			//return data, errors.New(fmt.Sprintf("HTTP %d :: %s", res.StatusCode, string(data[:])))
+			// return data, errors.New(fmt.Sprintf("HTTP %d :: %s", res.StatusCode, string(data[:])))
 		}
 		return data, nil
 	}
@@ -406,7 +406,6 @@ func (b *BigIP) post(body interface{}, path ...string) error {
 		Body:        strings.TrimRight(string(marshalJSON), "\n"),
 		ContentType: "application/json",
 	}
-
 	_, callErr := b.APICall(req)
 	return callErr
 }

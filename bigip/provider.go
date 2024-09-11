@@ -124,6 +124,7 @@ func Provider() *schema.Provider {
 			"bigip_fast_azure_service_discovery":  dataSourceBigipFastAzureServiceDiscovery(),
 			"bigip_fast_gce_service_discovery":    dataSourceBigipFastGceServiceDiscovery(),
 			"bigip_ilx_workspace":                 dataSourceBigIPILXWorkspace(),
+			"bigip_apm_webtop":                    dataSourceBigIPAPMWebtop(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"bigip_cm_device":                       resourceBigipCmDevice(),
@@ -194,6 +195,8 @@ func Provider() *schema.Provider {
 			"bigip_ltm_profile_bot_defense":         resourceBigipLtmProfileBotDefense(),
 			"bigip_ltm_profile_rewrite":             resourceBigipLtmRewriteProfile(),
 			"bigip_ltm_profile_rewrite_uri_rules":   resourceBigipLtmRewriteProfileUriRules(),
+			"bigip_ilx_workspace":                   resourceBigIPILXWorkspace(),
+			"bigip_apm_webtop":                      resourceBigIPAPMWebtop(),
 		},
 	}
 	p.ConfigureContextFunc = func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
@@ -327,7 +330,7 @@ func mapEntity(d map[string]interface{}, obj interface{}) {
 
 // Convert Snakecase to Camelcase
 func toCamelCase(str string) string {
-	var link = regexp.MustCompile("(^[A-Za-z])|_([A-Za-z])")
+	link := regexp.MustCompile("(^[A-Za-z])|_([A-Za-z])")
 	return link.ReplaceAllStringFunc(str, func(s string) string {
 		return strings.ToUpper(strings.ReplaceAll(s, "_", ""))
 	})
@@ -335,8 +338,8 @@ func toCamelCase(str string) string {
 
 // Convert Camelcase to Snakecase
 func toSnakeCase(str string) string {
-	var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
-	var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+	matchFirstCap := regexp.MustCompile("(.)([A-Z][a-z]+)")
+	matchAllCap := regexp.MustCompile("([a-z0-9])([A-Z])")
 	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
 	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
 	return strings.ToLower(snake)

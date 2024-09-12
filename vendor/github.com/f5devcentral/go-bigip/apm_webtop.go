@@ -13,19 +13,19 @@ type (
 )
 
 const (
-	Portal  WebtopType = "portal-access"
-	Full               = "full"
-	Network            = "network-access"
+	WebtopTypePortal  WebtopType = "portal-access"
+	WebtopTypeFull               = "full"
+	WebtopTypeNetwork            = "network-access"
 )
 
 const (
-	Modern   CustomizationType = "Modern"
-	Standard                   = "Standard"
+	CustomizationTypeModern   CustomizationType = "Modern"
+	CustomizationTypeStandard                   = "Standard"
 )
 
 const (
-	Collapsed InitialState = "Collapsed"
-	Expanded               = "Expanded"
+	InitialStateCollapsed InitialState = "Collapsed"
+	InitialStateExpanded               = "Expanded"
 )
 
 const (
@@ -109,7 +109,7 @@ func (b *BigIP) GetWebtop(ctx context.Context, name string) (*WebtopRead, error)
 	return &webtop, err
 }
 
-func (b *BigIP) ModifyWebtop(ctx context.Context, name string, webtop Webtop) error {
+func (b *BigIP) ModifyWebtop(ctx context.Context, name string, webtop WebtopConfig) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}

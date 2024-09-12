@@ -68,6 +68,7 @@ func dataSourceBigIPILXWorkspaceRead(ctx context.Context, d *schema.ResourceData
 	client := m.(*bigip.BigIP)
 	log.Printf("[INFO] Retrieving ILX Workspace %s", d.Get("name").(string))
 	spc, err := client.GetWorkspace(ctx, d.Get("name").(string))
+	spc, err := client.GetWorkspace(ctx, d.Get("name").(string))
 	if err != nil {
 		return diag.FromErr(err)
 	}

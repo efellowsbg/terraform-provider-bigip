@@ -16,6 +16,8 @@ func resourceBigIPILXWorkspace() *schema.Resource {
 	return &schema.Resource{
 		ReadContext:   resourceBigIPILXWorkspaceRead,
 		CreateContext: resourceBigIPILXWorkspaceCreate,
+		UpdateContext: resourceBigIPILXWorkspaceUpdate,
+		DeleteContext: resourceBigIPILXWorkspaceDelete,
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -95,7 +97,6 @@ func resourceBigIPILXWorkspaceRead(ctx context.Context, d *schema.ResourceData, 
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("error reading workspace %w", err))
 	}
-
 	if workspace == nil {
 		log.Printf("[DEBUG] workspace (%s) not found, removing from state", name)
 		d.SetId("")

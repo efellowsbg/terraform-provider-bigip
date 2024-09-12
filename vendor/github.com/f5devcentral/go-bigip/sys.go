@@ -19,6 +19,8 @@ import (
 
 	//"strings"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 type Version struct {
@@ -1098,4 +1100,18 @@ func (b *BigIP) DeletePartition(name string) error {
 func (b *BigIP) ModifyFolderDescription(partition string, body map[string]string) error {
 	partition = fmt.Sprintf("~%s", partition)
 	return b.patch(body, uriSys, uriFolder, partition)
+}
+
+// Write to a file using the echo command: echo "content" > destination
+func (b *BigIP) WriteFile(content string, destination string) error {
+	cmd := BigipCommand{
+		Command:     "run",
+		UtilCmdArgs: fmt.Sprintf("-c 'echo %s > %s'", content, destination),
+	}
+	out, err := b.RunCommand(&cmd)
+	if err != nil {
+		return fmt.Errorf("error running command: %w", err)
+	}
+	spew.Dump(out)
+	return nil
 }

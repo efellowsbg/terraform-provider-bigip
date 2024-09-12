@@ -6,8 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-
-	"github.com/davecgh/go-spew/spew"
+	"strings"
 )
 
 type ILXWorkspace struct {
@@ -23,7 +22,8 @@ type ILXWorkspace struct {
 }
 
 type File struct {
-	Name string `json:"name,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Content string `json:"content,omitempty"`
 }
 
 type Extension struct {
@@ -61,14 +61,6 @@ func (b *BigIP) DeleteWorkspace(ctx context.Context, name string) error {
 	return nil
 }
 
-func (b *BigIP) PatchWorkspace(ctx context.Context, name string) error {
-	err := b.patch(ILXWorkspace{Name: name}, uriMgmt, uriTm, uriIlx, uriWorkspace, name)
-	if err != nil {
-		return fmt.Errorf("error patching ILX Workspace: %w", err)
-	}
-	return nil
-}
-
 type ExtensionConfig struct {
 	Name          string `json:"name,omitempty"`
 	Partition     string `json:"partition,omitempty"`
@@ -98,6 +90,43 @@ func (b *BigIP) UploadExtensionFiles(ctx context.Context, opts ExtensionConfig, 
 	return nil
 }
 
+type ExtensionFile int64
+
+const (
+	PackageJSON ExtensionFile = iota
+	IndexJS
+)
+
+func (e ExtensionFile) String() string {
+	switch e {
+	case PackageJSON:
+		return "package.json"
+	case IndexJS:
+		return "index.js"
+	}
+	return "unknown"
+}
+
+func (b *BigIP) WriteExtensionFile(ctx context.Context, opts ExtensionConfig, content string, filename ExtensionFile) error {
+	destination := fmt.Sprintf("%s/%s/%s/extensions/%s/%s", WORKSPACE_UPLOAD_PATH, opts.Partition, opts.WorkspaceName, opts.Name, filename)
+	err := b.WriteFile(content, destination)
+	if err != nil {
+		return fmt.Errorf("error uploading packagejson: %w", err)
+	}
+	return nil
+}
+
+// Reads extension files for a specified ExtensionConfig. Ignores node_modules folder
+func (b *BigIP) ReadExtensionFiles(ctx context.Context, opts ExtensionConfig) ([]File, error) {
+	destination := fmt.Sprintf("%s/%s/%s/extensions/%s/", WORKSPACE_UPLOAD_PATH, opts.Partition, opts.WorkspaceName, opts.Name)
+	ignored := []string{"node_modules"}
+	files, err := b.getFilesFromDestination(destination, ignored)
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+
 func (b *BigIP) UploadRuleFiles(ctx context.Context, opts ExtensionConfig, path string) error {
 	destination := fmt.Sprintf("%s/%s/%s/rules/", WORKSPACE_UPLOAD_PATH, opts.Partition, opts.WorkspaceName)
 	files, err := readFilesFromDirectory(path)
@@ -124,6 +153,46 @@ func (b *BigIP) uploadFilesToDestination(files []*os.File, destination string) e
 	return nil
 }
 
+func removeEmpty(s []string) []string {
+	var r []string
+	for _, str := range s {
+		if str != "" {
+			r = append(r, str)
+		}
+	}
+	return r
+}
+
+func (b *BigIP) getFilesFromDestination(destination string, ignoreList []string) ([]File, error) {
+	files := []File{}
+	command := BigipCommand{
+		Command:     "run",
+		UtilCmdArgs: fmt.Sprintf("-c 'ls %s'", destination),
+	}
+	output, err := b.RunCommand(&command)
+	if err != nil {
+		return nil, fmt.Errorf("error running command: %w", err)
+	}
+	split := strings.Split(output.CommandResult, "\n")
+	split = removeEmpty(split)
+	for _, line := range strings.Split(output.CommandResult, "\n") {
+		// Check if the current file is in the ignore list
+		if contains(ignoreList, strings.TrimSpace(line)) || strings.TrimSpace(line) == "" {
+			continue
+		}
+		fileContentCommand := BigipCommand{
+			Command:     "run",
+			UtilCmdArgs: fmt.Sprintf("-c 'cat %s/%s'", destination, strings.TrimSpace(line)),
+		}
+		fileContent, err := b.RunCommand(&fileContentCommand)
+		if err != nil {
+			return nil, fmt.Errorf("error running command: %w", err)
+		}
+		files = append(files, File{Name: line, Content: fileContent.CommandResult})
+	}
+	return files, nil
+}
+
 func readFilesFromDirectory(path string) ([]*os.File, error) {
 	fileDirs, err := os.ReadDir(path)
 	if err != nil {
@@ -146,7 +215,7 @@ func readFilesFromDirectory(path string) ([]*os.File, error) {
 func (b *BigIP) uploadFiles(files []*os.File) ([]string, error) {
 	uploadedFilePaths := []string{}
 	for _, file := range files {
-		if file.Name() == "index.js" || file.Name() == "package.json" {
+		if strings.HasSuffix(file.Name(), "index.js") || strings.HasSuffix(file.Name(), "package.json") {
 			res, err := b.UploadFile(file)
 			if err != nil {
 				return nil, fmt.Errorf("error uploading file: %w", err)
@@ -154,6 +223,7 @@ func (b *BigIP) uploadFiles(files []*os.File) ([]string, error) {
 			uploadedFilePaths = append(uploadedFilePaths, res.LocalFilePath)
 		}
 	}
+
 	return uploadedFilePaths, nil
 }
 
@@ -163,11 +233,10 @@ func (b *BigIP) runCatCommand(uploadedFilePath, destination string) error {
 		Command:     "run",
 		UtilCmdArgs: fmt.Sprintf("-c 'cat %s > %s'", uploadedFilePath, destination+fileName),
 	}
-	output, err := b.RunCommand(&command)
+	_, err := b.RunCommand(&command)
 	if err != nil {
 		return fmt.Errorf("error running command: %w", err)
 	}
-	spew.Dump(output)
 	return nil
 }
 

@@ -112,14 +112,14 @@ func resourceBigipLtmPoolAttachmentCreate(ctx context.Context, d *schema.Resourc
 	match := re.FindStringSubmatch(nodeName)
 	if match != nil {
 		node1, err := client.GetNode(parts[0])
-		if err != nil {
-			log.Printf("[ERROR] Unable to retrieve node %s  %v :", nodeName, err)
-			return diag.FromErr(err)
-		}
 		if node1 == nil {
 			log.Printf("[WARN] Node (%s) not found, removing from state", d.Id())
 			d.SetId("")
 			return nil
+		}
+		if err != nil {
+			log.Printf("[ERROR] Unable to retrieve node %s  %v :", nodeName, err)
+			return diag.FromErr(err)
 		}
 		if node1.FQDN.Name != "" {
 			config := &bigip.PoolMemberFqdn{
@@ -182,13 +182,13 @@ func resourceBigipLtmPoolAttachmentUpdate(ctx context.Context, d *schema.Resourc
 	if match != nil {
 		parts := SplitNodePort(nodeName)
 		node1, err := client.GetNode(parts[0])
-		if err != nil {
-			return diag.FromErr(err)
-		}
 		if node1 == nil {
 			log.Printf("[WARN] Node (%s) not found, removing from state", d.Id())
 			d.SetId("")
 			return nil
+		}
+		if err != nil {
+			return diag.FromErr(err)
 		}
 
 		poolMem := SplitNodePort(nodeName)[0]
@@ -303,23 +303,23 @@ func resourceBigipLtmPoolAttachmentRead(ctx context.Context, d *schema.ResourceD
 	expected := d.Get("node").(string)
 
 	pool, err := client.GetPool(poolName)
-	if err != nil {
-		log.Printf("[ERROR] Unable to Retrieve Pool (%s)  (%v) ", poolName, err)
-		return diag.FromErr(err)
-	}
 	if pool == nil {
 		log.Printf("[WARN] Pool (%s) not found, removing from state", poolName)
 		d.SetId("")
 		return nil
 	}
-	nodes, err := client.PoolMembers(poolName)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("error retrieving pool (%s) members: %s", poolName, err))
+		log.Printf("[ERROR] Unable to Retrieve Pool (%s)  (%v) ", poolName, err)
+		return diag.FromErr(err)
 	}
+	nodes, err := client.PoolMembers(poolName)
 	if nodes == nil {
 		log.Printf("[WARN] Pool Members (%s) not found, removing from state", poolName)
 		d.SetId("")
 		return nil
+	}
+	if err != nil {
+		return diag.FromErr(fmt.Errorf("error retrieving pool (%s) members: %s", poolName, err))
 	}
 	// only set the instance Id that this resource manages
 	found := false

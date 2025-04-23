@@ -104,13 +104,13 @@ func resourceBigipNetSelfIPRead(ctx context.Context, d *schema.ResourceData, met
 	log.Printf("[INFO] Reading SelfIP %s", name)
 
 	selfIP, err := client.SelfIP(name)
-	if err != nil {
-		return diag.FromErr(fmt.Errorf("Error retrieving SelfIP %s: %v ", name, err))
-	}
 	if selfIP == nil {
 		log.Printf("[DEBUG] SelfIP %s not found, removing from state", name)
 		d.SetId("")
 		return nil
+	}
+	if err != nil {
+		return diag.FromErr(fmt.Errorf("Error retrieving SelfIP %s: %v ", name, err))
 	}
 
 	_ = d.Set("name", selfIP.FullPath)

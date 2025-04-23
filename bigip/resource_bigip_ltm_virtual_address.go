@@ -113,6 +113,7 @@ func resourceBigipLtmVirtualAddressRead(ctx context.Context, d *schema.ResourceD
 
 	var va bigip.VirtualAddress
 	vas, err := client.VirtualAddresses()
+	log.Printf("[DEBUG] virtual address response :%+v", vas)
 	if vas == nil {
 		log.Printf("[WARN] VirtualAddress (%s) not found, removing from state", d.Id())
 		d.SetId("")
@@ -127,9 +128,6 @@ func resourceBigipLtmVirtualAddressRead(ctx context.Context, d *schema.ResourceD
 			break
 		}
 	}
-	log.Printf("[DEBUG] virtual address response :%+v", va)
-	log.Printf("[DEBUG] name :%+v", name)
-	
 	if va.FullPath != name {
 		return diag.FromErr(fmt.Errorf("virtual address %s not found", name))
 	}

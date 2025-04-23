@@ -127,6 +127,9 @@ func resourceBigipLtmVirtualAddressRead(ctx context.Context, d *schema.ResourceD
 			break
 		}
 	}
+	log.Printf("[DEBUG] virtual address response :%+v", va)
+	log.Printf("[DEBUG] name :%+v", name)
+	
 	if va.FullPath != name {
 		return diag.FromErr(fmt.Errorf("virtual address %s not found", name))
 	}

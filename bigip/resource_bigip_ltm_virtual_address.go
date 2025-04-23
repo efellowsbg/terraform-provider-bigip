@@ -113,8 +113,7 @@ func resourceBigipLtmVirtualAddressRead(ctx context.Context, d *schema.ResourceD
 
 	var va bigip.VirtualAddress
 	vas, err := client.VirtualAddresses()
-	log.Printf("[DEBUG] virtual address response :%+v", vas)
-	if vas == nil {
+	if vas.len() == 0 {
 		log.Printf("[WARN] VirtualAddress (%s) not found, removing from state", d.Id())
 		d.SetId("")
 		return nil

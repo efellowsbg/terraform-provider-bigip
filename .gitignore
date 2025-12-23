@@ -48,6 +48,7 @@ README.md
 *.goback
 bigip/*.back
 examples1
+.gocache/
 # Test exclusions
 !examples/
 !command/test-fixtures/**/*.tfstate

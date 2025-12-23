@@ -178,6 +178,43 @@ type RouteDomain struct {
 	Vlans      []string `json:"vlans,omitempty"`
 }
 
+// DNSResolvers contains a list of DNS resolver objects.
+type DNSResolvers struct {
+	DNSResolvers []DNSResolver `json:"items"`
+}
+
+// DNSResolver contains configuration for a DNS resolver.
+// https://clouddocs.f5.com/api/icontrol-rest/APIRef_tm_net_dns-resolver.html
+type DNSResolver struct {
+	Name                   string                   `json:"name,omitempty"`
+	Partition              string                   `json:"partition,omitempty"`
+	FullPath               string                   `json:"fullPath,omitempty"`
+	Generation             int                      `json:"generation,omitempty"`
+	Description            string                   `json:"description,omitempty"`
+	AnswerDefaultZones     string                   `json:"answerDefaultZones,omitempty"`
+	CacheSize              int                      `json:"cacheSize,omitempty"`
+	RandomizeQueryNameCase string                   `json:"randomizeQueryNameCase,omitempty"`
+	RouteDomain            string                   `json:"routeDomain,omitempty"`
+	Type                   string                   `json:"type,omitempty"`
+	UseIpv4                string                   `json:"useIpv4,omitempty"`
+	UseIpv6                string                   `json:"useIpv6,omitempty"`
+	UseTcp                 string                   `json:"useTcp,omitempty"`
+	UseUdp                 string                   `json:"useUdp,omitempty"`
+	ForwardZones           []DNSResolverForwardZone `json:"forwardZones,omitempty"`
+	TmPartition            string                   `json:"tmPartition,omitempty"`
+}
+
+// DNSResolverForwardZone represents a forward zone entry on a resolver.
+type DNSResolverForwardZone struct {
+	Name        string                  `json:"name,omitempty"`
+	NameServers []DNSResolverNameserver `json:"nameservers,omitempty"`
+}
+
+// DNSResolverNameserver represents a nameserver entry.
+type DNSResolverNameserver struct {
+	Name string `json:"name,omitempty"`
+}
+
 // Tunnels contains a list of tunnel objects on the BIG-IP system.
 type Tunnels struct {
 	Tunnels []Tunnel `json:"items"`
@@ -321,6 +358,7 @@ const (
 	uriVlanInterfaces  = "interfaces"
 	uriRoute           = "route"
 	uriRouteDomain     = "route-domain"
+	uriDnsResolver     = "dns-resolver"
 	uriIpsec           = "ipsec"
 	uriTrafficselector = "traffic-selector"
 	uriIpsecPolicy     = "ipsec-policy"
@@ -612,6 +650,44 @@ func (b *BigIP) DeleteRouteDomain(name string) error {
 // can be modified are referenced in the RouteDomain struct.
 func (b *BigIP) ModifyRouteDomain(name string, config *RouteDomain) error {
 	return b.put(config, uriNet, uriRouteDomain, name)
+}
+
+// DNSResolvers returns a list of DNS resolver objects.
+func (b *BigIP) DNSResolvers() (*DNSResolvers, error) {
+	var resolvers DNSResolvers
+	err, _ := b.getForEntity(&resolvers, uriNet, uriDnsResolver)
+	if err != nil {
+		return nil, err
+	}
+	return &resolvers, nil
+}
+
+// GetDNSResolver fetches a DNS resolver by name.
+func (b *BigIP) GetDNSResolver(name string) (*DNSResolver, error) {
+	var resolver DNSResolver
+	err, ok := b.getForEntity(&resolver, uriNet, uriDnsResolver, name, "?expandSubcollections=true")
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, nil
+	}
+	return &resolver, nil
+}
+
+// CreateDNSResolver adds a new DNS resolver to the BIG-IP system.
+func (b *BigIP) CreateDNSResolver(config *DNSResolver) error {
+	return b.post(config, uriNet, uriDnsResolver)
+}
+
+// DeleteDNSResolver removes a DNS resolver.
+func (b *BigIP) DeleteDNSResolver(name string) error {
+	return b.delete(uriNet, uriDnsResolver, name)
+}
+
+// ModifyDNSResolver updates a DNS resolver.
+func (b *BigIP) ModifyDNSResolver(name string, config *DNSResolver) error {
+	return b.patch(config, uriNet, uriDnsResolver, name)
 }
 
 // Tunnels returns a list of tunnels.

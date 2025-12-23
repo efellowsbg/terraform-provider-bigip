@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	bigip "github.com/f5devcentral/go-bigip"
-	"github.com/f5devcentral/go-bigip/f5teem"
+	bigip "github.com/efellowsbg/go-bigip"
+	"github.com/efellowsbg/go-bigip/f5teem"
 	uuid "github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"

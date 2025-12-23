@@ -16,7 +16,7 @@ import (
 	"net/http"
 	"testing"
 
-	bigip "github.com/f5devcentral/go-bigip"
+	bigip "github.com/efellowsbg/go-bigip"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )

@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"log"
 
-	bigip "github.com/f5devcentral/go-bigip"
+	bigip "github.com/efellowsbg/go-bigip"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"

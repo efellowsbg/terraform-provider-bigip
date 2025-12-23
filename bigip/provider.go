@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	bigip "github.com/f5devcentral/go-bigip"
+	bigip "github.com/efellowsbg/go-bigip"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"golang.org/x/text/cases"
@@ -129,6 +129,7 @@ func Provider() *schema.Provider {
 			"bigip_cm_device":                       resourceBigipCmDevice(),
 			"bigip_cm_devicegroup":                  resourceBigipCmDevicegroup(),
 			"bigip_net_route":                       resourceBigipNetRoute(),
+			"bigip_net_dns_resolver":                resourceBigipNetDnsResolver(),
 			"bigip_net_selfip":                      resourceBigipNetSelfIP(),
 			"bigip_net_vlan":                        resourceBigipNetVlan(),
 			"bigip_ltm_irule":                       resourceBigipLtmIRule(),

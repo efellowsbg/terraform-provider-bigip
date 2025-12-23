@@ -12,7 +12,7 @@ import (
 	"log"
 	"os"
 
-	bigip "github.com/f5devcentral/go-bigip"
+	bigip "github.com/efellowsbg/go-bigip"
 )
 
 func Client(config *bigip.Config) (*bigip.BigIP, error) {

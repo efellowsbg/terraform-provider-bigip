@@ -197,14 +197,14 @@ func resourceBigipLtmNodeRead(ctx context.Context, d *schema.ResourceData, meta 
 	log.Println("[INFO] Fetching node " + name)
 
 	node, err := client.GetNode(name)
-	if err != nil {
-		log.Printf("[ERROR] Unable to retrieve node %s  %v :", name, err)
-		return diag.FromErr(err)
-	}
 	if node == nil {
 		log.Printf("[WARN] Node (%s) not found, removing from state", d.Id())
 		d.SetId("")
 		return nil
+	}
+	if err != nil {
+		log.Printf("[ERROR] Unable to retrieve node %s  %v :", name, err)
+		return diag.FromErr(err)
 	}
 	if node.FQDN.Name != "" {
 		_ = d.Set("address", node.FQDN.Name)
@@ -253,15 +253,15 @@ func resourceBigipLtmNodeExists(d *schema.ResourceData, meta interface{}) (bool,
 	log.Println("[INFO] Fetching node " + name)
 
 	node, err := client.GetNode(name)
+	if node == nil {
+		log.Printf("[WARN] node (%s) not found, removing from state", d.Id())
+		return false, nil
+	}
 	if err != nil {
 		log.Printf("[ERROR] Unable to retrieve node %s  %v :", name, err)
 		return false, err
 	}
 
-	if node == nil {
-		log.Printf("[WARN] node (%s) not found, removing from state", d.Id())
-		return false, nil
-	}
 	return true, nil
 }
 

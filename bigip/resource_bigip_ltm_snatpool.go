@@ -94,14 +94,14 @@ func resourceBigipLtmSnatpoolRead(ctx context.Context, d *schema.ResourceData, m
 	log.Println("[INFO] Fetching SNAT Pool " + name)
 
 	snatpool, err := client.GetSnatPool(name)
-	if err != nil {
-		log.Printf("[ERROR] Unable to Retrieve Snat Pool  (%s) (%v) ", name, err)
-		return diag.FromErr(err)
-	}
 	if snatpool == nil {
 		log.Printf("[WARN] SNAT Pool (%s) not found, removing from state", d.Id())
 		d.SetId("")
 		return nil
+	}
+	if err != nil {
+		log.Printf("[ERROR] Unable to Retrieve Snat Pool  (%s) (%v) ", name, err)
+		return diag.FromErr(err)
 	}
 	_ = d.Set("name", name)
 	_ = d.Set("members", snatpool.Members)

@@ -111,25 +111,29 @@ func resourceBigipLtmVirtualAddressRead(ctx context.Context, d *schema.ResourceD
 
 	log.Println("[INFO] Fetching virtual address " + name)
 
-	var va bigip.VirtualAddress
 	vas, err := client.VirtualAddresses()
+	log.Printf("[DEBUG] virtual address response :%+v", vas)
 	if err != nil {
 		log.Printf("[ERROR] Unable to Retrieve Virtual Address (%s) (%v) ", name, err)
 		return diag.FromErr(err)
 	}
-	if vas == nil {
+
+	foundVa := false
+	var va bigip.VirtualAddress
+	for _, cand := range vas.VirtualAddresses {
+		if cand.FullPath == name {
+			foundVa = true
+			va = cand
+			break
+		}
+	}
+
+	if !foundVa {
 		log.Printf("[WARN] VirtualAddress (%s) not found, removing from state", d.Id())
 		d.SetId("")
 		return nil
 	}
-	for _, va = range vas.VirtualAddresses {
-		if va.FullPath == name {
-			break
-		}
-	}
-	if va.FullPath != name {
-		return diag.FromErr(fmt.Errorf("virtual address %s not found", name))
-	}
+
 	log.Printf("[DEBUG] virtual address configured on bigip is :%+v", vas)
 
 	_ = d.Set("name", name)

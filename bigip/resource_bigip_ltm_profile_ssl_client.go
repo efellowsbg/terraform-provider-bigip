@@ -570,16 +570,16 @@ func resourceBigipLtmProfileClientSSLRead(ctx context.Context, d *schema.Resourc
 	log.Println("[INFO] Fetching Client SSL Profile " + name)
 	obj, err := client.GetClientSSLProfile(name)
 
-	if err != nil {
-		log.Printf("[ERROR] Unable to Retrieve Client SSL Profile   (%s) (%v) ", name, err)
-		return diag.FromErr(err)
-	}
-
 	if obj == nil {
 		log.Printf("[WARN] Client SSL Profile (%s) not found, removing from state", d.Id())
 		d.SetId("")
 		return nil
 	}
+	if err != nil {
+		log.Printf("[ERROR] Unable to Retrieve Client SSL Profile   (%s) (%v) ", name, err)
+		return diag.FromErr(err)
+	}
+
 
 	_ = d.Set("name", name)
 	_ = d.Set("partition", obj.Partition)

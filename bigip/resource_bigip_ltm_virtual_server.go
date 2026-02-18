@@ -327,15 +327,15 @@ func resourceBigipLtmVirtualServerRead(ctx context.Context, d *schema.ResourceDa
 
 	vs, err := client.GetVirtualServer(name)
 	log.Printf("[DEBUG]virtual Server Details:%+v", vs)
-	if err != nil {
-		log.Printf("[ERROR] Unable to Retrieve Virtual Server  (%s) (%v)", name, err)
-		d.SetId("")
-		return diag.FromErr(err)
-	}
 	if vs == nil {
 		log.Printf("[WARN] VirtualServer (%s) not found, removing from state", d.Id())
 		d.SetId("")
 		return nil
+	}
+	if err != nil {
+		log.Printf("[ERROR] Unable to Retrieve Virtual Server  (%s) (%v)", name, err)
+		d.SetId("")
+		return diag.FromErr(err)
 	}
 	vsDest := vs.Destination
 	log.Printf("[DEBUG]vsDest :%+v", vsDest)
@@ -464,15 +464,9 @@ func resourceBigipLtmVirtualServerRead(ctx context.Context, d *schema.ResourceDa
 				profileNames.Add(profile.FullPath)
 			}
 		}
-		if profileNames.Len() > 0 {
-			_ = d.Set("profiles", profileNames)
-		}
-		if clientProfileNames.Len() > 0 {
-			_ = d.Set("client_profiles", clientProfileNames)
-		}
-		if serverProfileNames.Len() > 0 {
-			_ = d.Set("server_profiles", serverProfileNames)
-		}
+		_ = d.Set("profiles", profileNames)
+		_ = d.Set("client_profiles", clientProfileNames)
+		_ = d.Set("server_profiles", serverProfileNames)
 	}
 	return nil
 }

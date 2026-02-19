@@ -9,7 +9,7 @@ package main
 import (
 	"log"
 
-	"github.com/F5Networks/terraform-provider-bigip/bigip"
+	"github.com/efellowsbg/terraform-provider-bigip/bigip"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 )
 

@@ -50,7 +50,7 @@ signs:
       - "--detach-sign"
       - "--local-user"
       - "{{ .Env.GPG_FINGERPRINT }}" # set this environment variable for your signing key
-      - "{{ .ArtifactPath }}"
+      - "${artifact}"
 
 release:
   # Visit your project's GitHub Releases page to publish this release.

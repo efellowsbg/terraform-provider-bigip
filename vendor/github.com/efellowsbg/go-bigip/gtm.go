@@ -15,20 +15,77 @@ import (
 	"log"
 )
 
-//ooo
+const (
+	uriGtm        = "gtm"
+	uriServer     = "server"
+	uriDatacenter = "datacenter"
+	uriGtmmonitor = "monitor"
+	uriPoolA      = "pool/a"
+	uriWideIp     = "wideip"
+	uriTopology   = "topology"
+	uriRegion     = "region"
+	uriProberPool = "prober-pool"
+)
 
 type Datacenters struct {
-	Datacenters []Datacenter `json:"items"`
+	Datacenters []GTMDatacenter `json:"items"`
 }
 
-type Datacenter struct {
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-	Contact     string `json:"contact,omitempty"`
-	App_service string `json:"appService,omitempty"`
-	Disabled    bool   `json:"disabled,omitempty"`
-	Enabled     bool   `json:"enabled,omitempty"`
-	Prober_pool string `json:"proberPool,omitempty"`
+// GTMWideIPPool represents a pool associated with a GTM WideIP
+type GTMWideIPPool struct {
+	Name      string `json:"name,omitempty"`
+	Partition string `json:"partition,omitempty"`
+	Order     int    `json:"order"`
+	Ratio     int    `json:"ratio"`
+}
+
+type GTMWideIP struct {
+	Name                              string          `json:"name,omitempty"`
+	Partition                         string          `json:"partition,omitempty"`
+	FullPath                          string          `json:"fullPath,omitempty"`
+	Generation                        int             `json:"generation,omitempty"`
+	AppService                        string          `json:"appService,omitempty"`
+	Description                       string          `json:"description,omitempty"`
+	Disabled                          bool            `json:"disabled,omitempty"`
+	Enabled                           bool            `json:"enabled,omitempty"`
+	FailureRcode                      string          `json:"failureRcode,omitempty"`
+	FailureRcodeResponse              string          `json:"failureRcodeResponse,omitempty"`
+	FailureRcodeTTL                   int             `json:"failureRcodeTtl,omitempty"`
+	LastResortPool                    string          `json:"lastResortPool,omitempty"`
+	LoadBalancingDecisionLogVerbosity []string        `json:"loadBalancingDecisionLogVerbosity,omitempty"`
+	MinimalResponse                   string          `json:"minimalResponse,omitempty"`
+	PersistCidrIpv4                   int             `json:"persistCidrIpv4,omitempty"`
+	PersistCidrIpv6                   int             `json:"persistCidrIpv6,omitempty"`
+	Persistence                       string          `json:"persistence,omitempty"`
+	PoolLbMode                        string          `json:"poolLbMode,omitempty"`
+	TopologyPreferEdns0ClientSubnet   string          `json:"topologyPreferEdns0ClientSubnet,omitempty"`
+	TTLPersistence                    int             `json:"ttlPersistence,omitempty"`
+	Aliases                           []string        `json:"aliases,omitempty"`
+	Pools                             []GTMWideIPPool `json:"pools"`
+}
+
+// type Datacenter struct {
+// 	Name        string `json:"name,omitempty"`
+// 	Description string `json:"description,omitempty"`
+// 	Contact     string `json:"contact,omitempty"`
+// 	App_service string `json:"appService,omitempty"`
+// 	Disabled    bool   `json:"disabled,omitempty"`
+// 	Enabled     bool   `json:"enabled,omitempty"`
+// 	Prober_pool string `json:"proberPool,omitempty"`
+// }
+
+type GTMDatacenter struct {
+	Name             string `json:"name,omitempty"`
+	Partition        string `json:"partition,omitempty"`
+	FullPath         string `json:"fullPath,omitempty"`
+	Contact          string `json:"contact,omitempty"`
+	Description      string `json:"description,omitempty"`
+	Enabled          bool   `json:"enabled,omitempty"`
+	Disabled         bool   `json:"disabled,omitempty"`
+	Location         string `json:"location,omitempty"`
+	ProberFallback   string `json:"proberFallback,omitempty"`
+	ProberPool       string `json:"proberPool,omitempty"`
+	ProberPreference string `json:"proberPreference,omitempty"`
 }
 
 type Gtmmonitors struct {
@@ -36,12 +93,43 @@ type Gtmmonitors struct {
 }
 
 type Gtmmonitor struct {
-	Name          string `json:"name,omitempty"`
-	Defaults_from string `json:"defaultsFrom,omitempty"`
-	Interval      int    `json:"interval,omitempty"`
-	Probe_timeout int    `json:"probeTimeout,omitempty"`
-	Recv          string `json:"recv,omitempty"`
-	Send          string `json:"send,omitempty"`
+	Name                 string `json:"name,omitempty"`
+	FullPath             string `json:"fullPath,omitempty"`
+	Partition            string `json:"partition,omitempty"`
+	Defaults_from        string `json:"defaultsFrom,omitempty"`
+	Destination          string `json:"destination,omitempty"`
+	Interval             int    `json:"interval,omitempty"`
+	Timeout              int    `json:"timeout,omitempty"`
+	Probe_timeout        int    `json:"probeTimeout,omitempty"`
+	Ignore_down_response string `json:"ignoreDownResponse,omitempty"`
+	Transparent          string `json:"transparent,omitempty"`
+	Reverse              string `json:"reverse,omitempty"`
+	Recv                 string `json:"recv,omitempty"`
+	Send                 string `json:"send,omitempty"`
+	// HTTPS-specific fields
+	Cert          string `json:"cert,omitempty"`
+	Key           string `json:"key,omitempty"`
+	Cipherlist    string `json:"cipherlist,omitempty"`
+	Compatibility string `json:"compatibility,omitempty"`
+	// SniServerName is a LOCAL PATCH: not present in the pinned upstream
+	// go-bigip commit (see go.mod/vendor/modules.txt), hand-added here to
+	// support bigip_gtm_monitor_https's sni_server_name attribute (see
+	// COREBIP-50067). This field corresponds to the real BIG-IP GTM HTTPS
+	// monitor's sniServerName API field (tmsh: sni-server-name), confirmed
+	// present via "tmsh help gtm monitor https" on a live 17.5.1 instance.
+	// Remove this comment (and verify the field/tag still match) once this
+	// is upstreamed to github.com/f5devcentral/go-bigip and the pinned
+	// commit is bumped to include it -- do not let a future blanket
+	// `go mod vendor` silently drop this field before that happens.
+	SniServerName string `json:"sniServerName,omitempty"`
+	// PostgreSQL-specific fields
+	Database string `json:"database,omitempty"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Count    string `json:"count,omitempty"`
+	Debug    string `json:"debug,omitempty"`
+	// BIG-IP monitor-specific fields
+	Aggregate_dynamic_ratios string `json:"aggregateDynamicRatios,omitempty"`
 }
 
 type Servers struct {
@@ -49,39 +137,98 @@ type Servers struct {
 }
 
 type Server struct {
-	Name                     string
-	Datacenter               string
-	Monitor                  string
-	Virtual_server_discovery bool
-	Product                  string
-	Addresses                []ServerAddresses
-	GTMVirtual_Server        []VSrecord
+	Name                      string
+	Datacenter                string
+	Description               string
+	Monitor                   string
+	Virtual_server_discovery  string
+	Product                   string
+	Enabled                   bool
+	Disabled                  bool
+	Addresses                 []ServerAddresses
+	GTMVirtual_Server         []VSrecord
+	ExposeRouteDomains        string
+	IqAllowPath               string
+	IqAllowServiceCheck       string
+	IqAllowSnmp               string
+	LinkDiscovery             string
+	ProberFallback            string
+	ProberPreference          string
+	ProberPool                string
+	LimitCpuUsage             int
+	LimitCpuUsageStatus       string
+	LimitMaxBps               int
+	LimitMaxBpsStatus         string
+	LimitMaxConnections       int
+	LimitMaxConnectionsStatus string
+	LimitMaxPps               int
+	LimitMaxPpsStatus         string
+	LimitMemAvail             int
+	LimitMemAvailStatus       string
 }
 
 type serverDTO struct {
-	Name                     string `json:"name"`
-	Datacenter               string `json:"datacenter,omitempty"`
-	Monitor                  string `json:"monitor,omitempty"`
-	Virtual_server_discovery bool   `json:"virtual_server_discovery"`
-	Product                  string `json:"product,omitempty"`
-	Addresses                struct {
-		Items []ServerAddresses `json:"items,omitempty"`
-	} `json:"addressesReference,omitempty"`
-	GTMVirtual_Server struct {
+	Name                      string            `json:"name"`
+	Datacenter                string            `json:"datacenter,omitempty"`
+	Description               string            `json:"description,omitempty"`
+	Monitor                   string            `json:"monitor,omitempty"`
+	Virtual_server_discovery  string            `json:"virtualServerDiscovery,omitempty"`
+	Product                   string            `json:"product,omitempty"`
+	Enabled                   bool              `json:"enabled,omitempty"`
+	Disabled                  bool              `json:"disabled,omitempty"`
+	ExposeRouteDomains        string            `json:"exposeRouteDomains,omitempty"`
+	IqAllowPath               string            `json:"iqAllowPath,omitempty"`
+	IqAllowServiceCheck       string            `json:"iqAllowServiceCheck,omitempty"`
+	IqAllowSnmp               string            `json:"iqAllowSnmp,omitempty"`
+	LinkDiscovery             string            `json:"linkDiscovery,omitempty"`
+	ProberFallback            string            `json:"proberFallback,omitempty"`
+	ProberPreference          string            `json:"proberPreference,omitempty"`
+	ProberPool                string            `json:"proberPool,omitempty"`
+	LimitCpuUsage             int               `json:"limitCpuUsage,omitempty"`
+	LimitCpuUsageStatus       string            `json:"limitCpuUsageStatus,omitempty"`
+	LimitMaxBps               int               `json:"limitMaxBps,omitempty"`
+	LimitMaxBpsStatus         string            `json:"limitMaxBpsStatus,omitempty"`
+	LimitMaxConnections       int               `json:"limitMaxConnections,omitempty"`
+	LimitMaxConnectionsStatus string            `json:"limitMaxConnectionsStatus,omitempty"`
+	LimitMaxPps               int               `json:"limitMaxPps,omitempty"`
+	LimitMaxPpsStatus         string            `json:"limitMaxPpsStatus,omitempty"`
+	LimitMemAvail             int               `json:"limitMemAvail,omitempty"`
+	LimitMemAvailStatus       string            `json:"limitMemAvailStatus,omitempty"`
+	Addresses                 []ServerAddresses `json:"addresses,omitempty"`
+	GTMVirtual_Server         struct {
 		Items []VSrecord `json:"items,omitempty"`
 	} `json:"virtualServersReference,omitempty"`
 }
 
 func (p *Server) MarshalJSON() ([]byte, error) {
 	return json.Marshal(serverDTO{
-		Name:                     p.Name,
-		Datacenter:               p.Datacenter,
-		Monitor:                  p.Monitor,
-		Virtual_server_discovery: p.Virtual_server_discovery,
-		Product:                  p.Product,
-		Addresses: struct {
-			Items []ServerAddresses `json:"items,omitempty"`
-		}{Items: p.Addresses},
+		Name:                      p.Name,
+		Datacenter:                p.Datacenter,
+		Description:               p.Description,
+		Monitor:                   p.Monitor,
+		Virtual_server_discovery:  p.Virtual_server_discovery,
+		Product:                   p.Product,
+		Enabled:                   p.Enabled,
+		Disabled:                  p.Disabled,
+		ExposeRouteDomains:        p.ExposeRouteDomains,
+		IqAllowPath:               p.IqAllowPath,
+		IqAllowServiceCheck:       p.IqAllowServiceCheck,
+		IqAllowSnmp:               p.IqAllowSnmp,
+		LinkDiscovery:             p.LinkDiscovery,
+		ProberFallback:            p.ProberFallback,
+		ProberPreference:          p.ProberPreference,
+		ProberPool:                p.ProberPool,
+		LimitCpuUsage:             p.LimitCpuUsage,
+		LimitCpuUsageStatus:       p.LimitCpuUsageStatus,
+		LimitMaxBps:               p.LimitMaxBps,
+		LimitMaxBpsStatus:         p.LimitMaxBpsStatus,
+		LimitMaxConnections:       p.LimitMaxConnections,
+		LimitMaxConnectionsStatus: p.LimitMaxConnectionsStatus,
+		LimitMaxPps:               p.LimitMaxPps,
+		LimitMaxPpsStatus:         p.LimitMaxPpsStatus,
+		LimitMemAvail:             p.LimitMemAvail,
+		LimitMemAvailStatus:       p.LimitMemAvailStatus,
+		Addresses:                 p.Addresses,
 		GTMVirtual_Server: struct {
 			Items []VSrecord `json:"items,omitempty"`
 		}{Items: p.GTMVirtual_Server},
@@ -97,10 +244,31 @@ func (p *Server) UnmarshalJSON(b []byte) error {
 
 	p.Name = dto.Name
 	p.Datacenter = dto.Datacenter
+	p.Description = dto.Description
 	p.Monitor = dto.Monitor
 	p.Virtual_server_discovery = dto.Virtual_server_discovery
 	p.Product = dto.Product
-	p.Addresses = dto.Addresses.Items
+	p.Enabled = dto.Enabled
+	p.Disabled = dto.Disabled
+	p.ExposeRouteDomains = dto.ExposeRouteDomains
+	p.IqAllowPath = dto.IqAllowPath
+	p.IqAllowServiceCheck = dto.IqAllowServiceCheck
+	p.IqAllowSnmp = dto.IqAllowSnmp
+	p.LinkDiscovery = dto.LinkDiscovery
+	p.ProberFallback = dto.ProberFallback
+	p.ProberPreference = dto.ProberPreference
+	p.ProberPool = dto.ProberPool
+	p.LimitCpuUsage = dto.LimitCpuUsage
+	p.LimitCpuUsageStatus = dto.LimitCpuUsageStatus
+	p.LimitMaxBps = dto.LimitMaxBps
+	p.LimitMaxBpsStatus = dto.LimitMaxBpsStatus
+	p.LimitMaxConnections = dto.LimitMaxConnections
+	p.LimitMaxConnectionsStatus = dto.LimitMaxConnectionsStatus
+	p.LimitMaxPps = dto.LimitMaxPps
+	p.LimitMaxPpsStatus = dto.LimitMaxPpsStatus
+	p.LimitMemAvail = dto.LimitMemAvail
+	p.LimitMemAvailStatus = dto.LimitMemAvailStatus
+	p.Addresses = dto.Addresses
 	p.GTMVirtual_Server = dto.GTMVirtual_Server.Items
 	return nil
 }
@@ -120,93 +288,257 @@ type VSrecords struct {
 }
 
 type VSrecord struct {
-	Name        string `json:"name"`
-	Destination string `json:"destination,omitempty"`
+	Name                      string `json:"name"`
+	FullPath                  string `json:"fullPath,omitempty"`
+	Destination               string `json:"destination,omitempty"`
+	Enabled                   bool   `json:"enabled,omitempty"`
+	Disabled                  bool   `json:"disabled,omitempty"`
+	TranslationAddress        string `json:"translationAddress,omitempty"`
+	TranslationPort           int    `json:"translationPort,omitempty"`
+	Monitor                   string `json:"monitor,omitempty"`
+	LimitMaxBps               int    `json:"limitMaxBps,omitempty"`
+	LimitMaxBpsStatus         string `json:"limitMaxBpsStatus,omitempty"`
+	LimitMaxConnections       int    `json:"limitMaxConnections,omitempty"`
+	LimitMaxConnectionsStatus string `json:"limitMaxConnectionsStatus,omitempty"`
+	LimitMaxPps               int    `json:"limitMaxPps,omitempty"`
+	LimitMaxPpsStatus         string `json:"limitMaxPpsStatus,omitempty"`
+	DependsOn                 string `json:"dependsOn,omitempty"`
 }
 
-type Pool_as struct {
-	Pool_as []Pool_a `json:"items"`
+type GtmPools struct {
+	Pools []GtmPool `json:"items"`
 }
 
-type Pool_a struct {
-	Name                 string   `json:"name,omitempty"`
-	Monitor              string   `json:"monitor,omitempty"`
-	Load_balancing_mode  string   `json:"load_balancing_mode,omitempty"`
-	Max_answers_returned int      `json:"max_answers_returned,omitempty"`
-	Alternate_mode       string   `json:"alternate_mode,omitempty"`
-	Fallback_ip          string   `json:"fallback_ip,omitempty"`
-	Fallback_mode        string   `json:"fallback_mode,omitempty"`
-	Members              []string `json:"members,omitempty"`
+type GtmPool struct {
+	Name                      string `json:"name,omitempty"`
+	Partition                 string `json:"partition,omitempty"`
+	FullPath                  string `json:"fullPath,omitempty"`
+	Generation                int    `json:"generation,omitempty"`
+	AlternateMode             string `json:"alternateMode,omitempty"`
+	DynamicRatio              string `json:"dynamicRatio,omitempty"`
+	Enabled                   bool   `json:"enabled,omitempty"`
+	Disabled                  bool   `json:"disabled,omitempty"`
+	FallbackIp                string `json:"fallbackIp,omitempty"`
+	FallbackMode              string `json:"fallbackMode,omitempty"`
+	LoadBalancingMode         string `json:"loadBalancingMode,omitempty"`
+	ManualResume              string `json:"manualResume,omitempty"`
+	MaxAnswersReturned        int    `json:"maxAnswersReturned,omitempty"`
+	Monitor                   string `json:"monitor,omitempty"`
+	QosHitRatio               int    `json:"qosHitRatio,omitempty"`
+	QosHops                   int    `json:"qosHops,omitempty"`
+	QosKilobytesSecond        int    `json:"qosKilobytesSecond,omitempty"`
+	QosLcs                    int    `json:"qosLcs,omitempty"`
+	QosPacketRate             int    `json:"qosPacketRate,omitempty"`
+	QosRtt                    int    `json:"qosRtt,omitempty"`
+	QosTopology               int    `json:"qosTopology,omitempty"`
+	QosVsCapacity             int    `json:"qosVsCapacity,omitempty"`
+	QosVsScore                int    `json:"qosVsScore,omitempty"`
+	Ttl                       int    `json:"ttl,omitempty"`
+	LimitMaxBps               int    `json:"limitMaxBps,omitempty"`
+	LimitMaxBpsStatus         string `json:"limitMaxBpsStatus,omitempty"`
+	LimitMaxConnections       int    `json:"limitMaxConnections,omitempty"`
+	LimitMaxConnectionsStatus string `json:"limitMaxConnectionsStatus,omitempty"`
+	LimitMaxPps               int    `json:"limitMaxPps,omitempty"`
+	LimitMaxPpsStatus         string `json:"limitMaxPpsStatus,omitempty"`
+	MinMembersUpMode          string `json:"minMembersUpMode,omitempty"`
+	MinMembersUpValue         int    `json:"minMembersUpValue,omitempty"`
+	VerifyMemberAvailability  string `json:"verifyMemberAvailability,omitempty"`
+	Members                   []GtmPoolMembers
+
+	// Legacy fields for backward compatibility
+	Load_balancing_mode  string `json:"load_balancing_mode,omitempty"`
+	Max_answers_returned int    `json:"max_answers_returned,omitempty"`
+	Alternate_mode       string `json:"alternate_mode,omitempty"`
+	Fallback_ip          string `json:"fallback_ip,omitempty"`
+	Fallback_mode        string `json:"fallback_mode,omitempty"`
 }
 
-const (
-	uriGtm        = "gtm"
-	uriServer     = "server"
-	uriDatacenter = "datacenter"
-	uriGtmmonitor = "monitor"
-	uriPool_a     = "pool/a"
-)
+type gtmPoolDTO struct {
+	Name                      string `json:"name,omitempty"`
+	Partition                 string `json:"partition,omitempty"`
+	FullPath                  string `json:"fullPath,omitempty"`
+	Generation                int    `json:"generation,omitempty"`
+	AlternateMode             string `json:"alternateMode,omitempty"`
+	DynamicRatio              string `json:"dynamicRatio,omitempty"`
+	Enabled                   bool   `json:"enabled,omitempty"`
+	Disabled                  bool   `json:"disabled,omitempty"`
+	FallbackIp                string `json:"fallbackIp,omitempty"`
+	FallbackMode              string `json:"fallbackMode,omitempty"`
+	LoadBalancingMode         string `json:"loadBalancingMode,omitempty"`
+	ManualResume              string `json:"manualResume,omitempty"`
+	MaxAnswersReturned        int    `json:"maxAnswersReturned,omitempty"`
+	Monitor                   string `json:"monitor,omitempty"`
+	QosHitRatio               int    `json:"qosHitRatio,omitempty"`
+	QosHops                   int    `json:"qosHops,omitempty"`
+	QosKilobytesSecond        int    `json:"qosKilobytesSecond,omitempty"`
+	QosLcs                    int    `json:"qosLcs,omitempty"`
+	QosPacketRate             int    `json:"qosPacketRate,omitempty"`
+	QosRtt                    int    `json:"qosRtt,omitempty"`
+	QosTopology               int    `json:"qosTopology,omitempty"`
+	QosVsCapacity             int    `json:"qosVsCapacity,omitempty"`
+	QosVsScore                int    `json:"qosVsScore,omitempty"`
+	Ttl                       int    `json:"ttl,omitempty"`
+	LimitMaxBps               int    `json:"limitMaxBps,omitempty"`
+	LimitMaxBpsStatus         string `json:"limitMaxBpsStatus,omitempty"`
+	LimitMaxConnections       int    `json:"limitMaxConnections,omitempty"`
+	LimitMaxConnectionsStatus string `json:"limitMaxConnectionsStatus,omitempty"`
+	LimitMaxPps               int    `json:"limitMaxPps,omitempty"`
+	LimitMaxPpsStatus         string `json:"limitMaxPpsStatus,omitempty"`
+	MinMembersUpMode          string `json:"minMembersUpMode,omitempty"`
+	MinMembersUpValue         int    `json:"minMembersUpValue,omitempty"`
+	VerifyMemberAvailability  string `json:"verifyMemberAvailability,omitempty"`
+	MembersReference          struct {
+		Items []GtmPoolMembers `json:"items,omitempty"`
+	} `json:"membersReference,omitempty"`
 
-func (b *BigIP) Datacenters() (*Datacenter, error) {
-	var datacenter Datacenter
-	err, _ := b.getForEntity(&datacenter, uriGtm, uriDatacenter)
+	// Legacy fields for backward compatibility
+	Load_balancing_mode  string `json:"load_balancing_mode,omitempty"`
+	Max_answers_returned int    `json:"max_answers_returned,omitempty"`
+	Alternate_mode       string `json:"alternate_mode,omitempty"`
+	Fallback_ip          string `json:"fallback_ip,omitempty"`
+	Fallback_mode        string `json:"fallback_mode,omitempty"`
+}
 
+func (p *GtmPool) MarshalJSON() ([]byte, error) {
+	return json.Marshal(gtmPoolDTO{
+		Name:                      p.Name,
+		Partition:                 p.Partition,
+		FullPath:                  p.FullPath,
+		Generation:                p.Generation,
+		AlternateMode:             p.AlternateMode,
+		DynamicRatio:              p.DynamicRatio,
+		Enabled:                   p.Enabled,
+		Disabled:                  p.Disabled,
+		FallbackIp:                p.FallbackIp,
+		FallbackMode:              p.FallbackMode,
+		LoadBalancingMode:         p.LoadBalancingMode,
+		ManualResume:              p.ManualResume,
+		MaxAnswersReturned:        p.MaxAnswersReturned,
+		Monitor:                   p.Monitor,
+		QosHitRatio:               p.QosHitRatio,
+		QosHops:                   p.QosHops,
+		QosKilobytesSecond:        p.QosKilobytesSecond,
+		QosLcs:                    p.QosLcs,
+		QosPacketRate:             p.QosPacketRate,
+		QosRtt:                    p.QosRtt,
+		QosTopology:               p.QosTopology,
+		QosVsCapacity:             p.QosVsCapacity,
+		QosVsScore:                p.QosVsScore,
+		Ttl:                       p.Ttl,
+		LimitMaxBps:               p.LimitMaxBps,
+		LimitMaxBpsStatus:         p.LimitMaxBpsStatus,
+		LimitMaxConnections:       p.LimitMaxConnections,
+		LimitMaxConnectionsStatus: p.LimitMaxConnectionsStatus,
+		LimitMaxPps:               p.LimitMaxPps,
+		LimitMaxPpsStatus:         p.LimitMaxPpsStatus,
+		MinMembersUpMode:          p.MinMembersUpMode,
+		MinMembersUpValue:         p.MinMembersUpValue,
+		VerifyMemberAvailability:  p.VerifyMemberAvailability,
+		MembersReference: struct {
+			Items []GtmPoolMembers `json:"items,omitempty"`
+		}{Items: p.Members},
+		Load_balancing_mode:  p.Load_balancing_mode,
+		Max_answers_returned: p.Max_answers_returned,
+		Alternate_mode:       p.Alternate_mode,
+		Fallback_ip:          p.Fallback_ip,
+		Fallback_mode:        p.Fallback_mode,
+	})
+}
+
+func (p *GtmPool) UnmarshalJSON(b []byte) error {
+	var dto gtmPoolDTO
+	err := json.Unmarshal(b, &dto)
+	if err != nil {
+		return err
+	}
+
+	p.Name = dto.Name
+	p.Partition = dto.Partition
+	p.FullPath = dto.FullPath
+	p.Generation = dto.Generation
+	p.AlternateMode = dto.AlternateMode
+	p.DynamicRatio = dto.DynamicRatio
+	p.Enabled = dto.Enabled
+	p.Disabled = dto.Disabled
+	p.FallbackIp = dto.FallbackIp
+	p.FallbackMode = dto.FallbackMode
+	p.LoadBalancingMode = dto.LoadBalancingMode
+	p.ManualResume = dto.ManualResume
+	p.MaxAnswersReturned = dto.MaxAnswersReturned
+	p.Monitor = dto.Monitor
+	p.QosHitRatio = dto.QosHitRatio
+	p.QosHops = dto.QosHops
+	p.QosKilobytesSecond = dto.QosKilobytesSecond
+	p.QosLcs = dto.QosLcs
+	p.QosPacketRate = dto.QosPacketRate
+	p.QosRtt = dto.QosRtt
+	p.QosTopology = dto.QosTopology
+	p.QosVsCapacity = dto.QosVsCapacity
+	p.QosVsScore = dto.QosVsScore
+	p.Ttl = dto.Ttl
+	p.LimitMaxBps = dto.LimitMaxBps
+	p.LimitMaxBpsStatus = dto.LimitMaxBpsStatus
+	p.LimitMaxConnections = dto.LimitMaxConnections
+	p.LimitMaxConnectionsStatus = dto.LimitMaxConnectionsStatus
+	p.LimitMaxPps = dto.LimitMaxPps
+	p.LimitMaxPpsStatus = dto.LimitMaxPpsStatus
+	p.MinMembersUpMode = dto.MinMembersUpMode
+	p.MinMembersUpValue = dto.MinMembersUpValue
+	p.VerifyMemberAvailability = dto.VerifyMemberAvailability
+	p.Members = dto.MembersReference.Items
+	p.Load_balancing_mode = dto.Load_balancing_mode
+	p.Max_answers_returned = dto.Max_answers_returned
+	p.Alternate_mode = dto.Alternate_mode
+	p.Fallback_ip = dto.Fallback_ip
+	p.Fallback_mode = dto.Fallback_mode
+	return nil
+}
+
+type GtmPoolMembers struct {
+	Name                      string `json:"name,omitempty"`
+	Partition                 string `json:"partition,omitempty"`
+	SubPath                   string `json:"subPath,omitempty"`
+	FullPath                  string `json:"fullPath,omitempty"`
+	Generation                int    `json:"generation,omitempty"`
+	Enabled                   bool   `json:"enabled,omitempty"`
+	Disabled                  bool   `json:"disabled,omitempty"`
+	LimitMaxBps               int    `json:"limitMaxBps,omitempty"`
+	LimitMaxBpsStatus         string `json:"limitMaxBpsStatus,omitempty"`
+	LimitMaxConnections       int    `json:"limitMaxConnections,omitempty"`
+	LimitMaxConnectionsStatus string `json:"limitMaxConnectionsStatus,omitempty"`
+	LimitMaxPps               int    `json:"limitMaxPps,omitempty"`
+	LimitMaxPpsStatus         string `json:"limitMaxPpsStatus,omitempty"`
+	MemberOrder               int    `json:"memberOrder,omitempty"`
+	Monitor                   string `json:"monitor,omitempty"`
+	Ratio                     int    `json:"ratio,omitempty"`
+}
+
+// CreateGtmMonitor creates a GTM monitor of the specified type
+func (b *BigIP) CreateGtmMonitor(monitor *Gtmmonitor, monitorType string) error {
+	return b.post(monitor, uriGtm, uriGtmmonitor, monitorType)
+}
+
+// GetGtmMonitor retrieves a GTM monitor of the specified type
+func (b *BigIP) GetGtmMonitor(name string, monitorType string) (*Gtmmonitor, error) {
+	var monitor Gtmmonitor
+	err, ok := b.getForEntity(&monitor, uriGtm, uriGtmmonitor, monitorType, name)
 	if err != nil {
 		return nil, err
 	}
-
-	return &datacenter, nil
-}
-
-func (b *BigIP) CreateDatacenter(name, description, contact, app_service string, enabled, disabled bool, prober_pool string) error {
-	config := &Datacenter{
-		Name:        name,
-		Description: description,
-		Contact:     contact,
-		App_service: app_service,
-		Enabled:     enabled,
-		Disabled:    disabled,
-		Prober_pool: prober_pool,
+	if !ok {
+		return nil, nil
 	}
-	return b.post(config, uriGtm, uriDatacenter)
+	return &monitor, nil
 }
 
-func (b *BigIP) ModifyDatacenter(*Datacenter) error {
-	return b.patch(uriGtm, uriDatacenter)
+// ModifyGtmMonitor modifies a GTM monitor of the specified type
+func (b *BigIP) ModifyGtmMonitor(name string, monitor *Gtmmonitor, monitorType string) error {
+	return b.put(monitor, uriGtm, uriGtmmonitor, monitorType, name)
 }
 
-func (b *BigIP) DeleteDatacenter(name string) error {
-	return b.delete(uriGtm, uriDatacenter, name)
-}
-
-func (b *BigIP) Gtmmonitors() (*Gtmmonitor, error) {
-	var gtmmonitor Gtmmonitor
-	err, _ := b.getForEntity(&gtmmonitor, uriGtm, uriGtmmonitor, uriHttp)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &gtmmonitor, nil
-}
-func (b *BigIP) CreateGtmmonitor(name, defaults_from string, interval, probeTimeout int, recv, send string) error {
-	config := &Gtmmonitor{
-		Name:          name,
-		Defaults_from: defaults_from,
-		Interval:      interval,
-		Probe_timeout: probeTimeout,
-		Recv:          recv,
-		Send:          send,
-	}
-	return b.post(config, uriGtm, uriGtmmonitor, uriHttp)
-}
-
-func (b *BigIP) ModifyGtmmonitor(*Gtmmonitor) error {
-	return b.patch(uriGtm, uriGtmmonitor, uriHttp)
-}
-
-func (b *BigIP) DeleteGtmmonitor(name string) error {
-	return b.delete(uriGtm, uriGtmmonitor, uriHttp, name)
+// DeleteGtmMonitor deletes a GTM monitor of the specified type
+func (b *BigIP) DeleteGtmMonitor(name string, monitorType string) error {
+	return b.delete(uriGtm, uriGtmmonitor, monitorType, name)
 }
 
 func (b *BigIP) CreateGtmserver(p *Server) error {
@@ -234,35 +566,343 @@ func (b *BigIP) GetGtmserver(name string) (*Server, error) {
 		return nil, nil
 	}
 
+	// Fetch virtual servers separately as they are returned via reference
+	var vsResponse struct {
+		Items []VSrecord `json:"items"`
+	}
+	err, ok = b.getForEntity(&vsResponse, uriGtm, uriServer, name, "virtual-servers")
+	if err != nil {
+		log.Printf("[DEBUG] Error fetching GTM server virtual servers for %s: %v", name, err)
+	} else if ok && len(vsResponse.Items) > 0 {
+		p.GTMVirtual_Server = vsResponse.Items
+		log.Printf("[DEBUG] Fetched %d virtual servers for GTM server %s", len(vsResponse.Items), name)
+	}
+
 	return &p, nil
 }
 
-func (b *BigIP) CreatePool_a(name, monitor, load_balancing_mode string, max_answers_returned int, alternate_mode, fallback_ip, fallback_mode string, members []string) error {
-	config := &Pool_a{
-		Name:                 name,
-		Monitor:              monitor,
-		Load_balancing_mode:  load_balancing_mode,
-		Max_answers_returned: max_answers_returned,
-		Alternate_mode:       alternate_mode,
-		Fallback_ip:          fallback_ip,
-		Fallback_mode:        fallback_mode,
-		Members:              members,
+// GetGTMServerVirtualServers retrieves all virtual servers for a GTM server
+func (b *BigIP) GetGTMServerVirtualServers(serverName string) ([]VSrecord, error) {
+	var response struct {
+		Items []VSrecord `json:"items"`
 	}
-	log.Println("in poola now", config)
-	return b.patch(config, uriGtm, uriPool_a)
-}
-
-func (b *BigIP) ModifyPool_a(config *Pool_a) error {
-	return b.put(config, uriGtm, uriPool_a)
-}
-
-func (b *BigIP) Pool_as() (*Pool_a, error) {
-	var pool_a Pool_a
-	err, _ := b.getForEntity(&pool_a, uriGtm, uriPool_a)
-
+	err, ok := b.getForEntity(&response, uriGtm, uriServer, serverName, "virtual-servers")
 	if err != nil {
 		return nil, err
 	}
-
-	return &pool_a, nil
+	if !ok {
+		return nil, nil
+	}
+	return response.Items, nil
 }
+
+// GetGTMServerVirtualServer retrieves a specific virtual server from a GTM server
+func (b *BigIP) GetGTMServerVirtualServer(serverName, vsName string) (*VSrecord, error) {
+	var vs VSrecord
+	err, ok := b.getForEntity(&vs, uriGtm, uriServer, serverName, "virtual-servers", vsName)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, nil
+	}
+	return &vs, nil
+}
+
+// CreateGTMServerVirtualServer creates a virtual server on a GTM server
+func (b *BigIP) CreateGTMServerVirtualServer(serverName string, vs *VSrecord) error {
+	return b.post(vs, uriGtm, uriServer, serverName, "virtual-servers")
+}
+
+// ModifyGTMServerVirtualServer updates a virtual server on a GTM server
+func (b *BigIP) ModifyGTMServerVirtualServer(serverName, vsName string, vs *VSrecord) error {
+	return b.put(vs, uriGtm, uriServer, serverName, "virtual-servers", vsName)
+}
+
+// DeleteGTMServerVirtualServer removes a virtual server from a GTM server
+func (b *BigIP) DeleteGTMServerVirtualServer(serverName, vsName string) error {
+	return b.delete(uriGtm, uriServer, serverName, "virtual-servers", vsName)
+}
+
+// func (b *BigIP) CreatePool_a(name, monitor, load_balancing_mode string, max_answers_returned int, alternate_mode, fallback_ip, fallback_mode string, members []string) error {
+// 	config := &Pool{
+// 		Name:                 name,
+// 		Monitor:              monitor,
+// 		Load_balancing_mode:  load_balancing_mode,
+// 		Max_answers_returned: max_answers_returned,
+// 		Alternate_mode:       alternate_mode,
+// 		Fallback_ip:          fallback_ip,
+// 		Fallback_mode:        fallback_mode,
+// 		Members:              members,
+// 	}
+// 	log.Println("in poola now", config)
+// 	return b.patch(config, uriGtm, uriPoolA)
+// }
+
+// func (b *BigIP) ModifyPool_a(config *GtmPool) error {
+// 	return b.put(config, uriGtm, uriPoolA)
+// }
+
+// func (b *BigIP) Pool_as() (*GtmPool, error) {
+// 	var pool GtmPool
+// 	err, _ := b.getForEntity(&pool, uriGtm, uriPoolA)
+
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return &pool, nil
+// }
+
+// AddGTMPool creates a new GTM pool
+func (b *BigIP) AddGTMPool(config *GtmPool, poolType string) error {
+	return b.post(config, uriGtm, "pool", poolType)
+}
+
+// GetGTMPool retrieves a GTM pool by name
+func (b *BigIP) GetGTMPool(fullPath string, poolType string) (*GtmPool, error) {
+	var pool GtmPool
+	err, ok := b.getForEntity(&pool, uriGtm, "pool", poolType, fullPath)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, nil
+	}
+
+	// Fetch members separately using the same path pattern as LTM pools
+	var membersResponse struct {
+		Items []GtmPoolMembers `json:"items"`
+	}
+	log.Printf("[DEBUG] Attempting to fetch members for GTM pool: %s, type: %s, path: gtm/pool/%s/%s/members", fullPath, poolType, poolType, fullPath)
+	err, ok = b.getForEntity(&membersResponse, uriGtm, "pool", poolType, fullPath, "members")
+	if err != nil {
+		log.Printf("[DEBUG] Error fetching GTM pool members for %s: %v", fullPath, err)
+		// Don't fail - pool might not have members or endpoint might not be accessible
+	} else if ok {
+		log.Printf("[DEBUG] Members response OK, found %d items", len(membersResponse.Items))
+		if len(membersResponse.Items) > 0 {
+			pool.Members = membersResponse.Items
+			log.Printf("[DEBUG] Fetched %d members for GTM pool %s", len(membersResponse.Items), fullPath)
+		} else {
+			log.Printf("[DEBUG] No members found for GTM pool %s", fullPath)
+		}
+	} else {
+		log.Printf("[DEBUG] Members fetch returned ok=false for pool %s", fullPath)
+	}
+
+	return &pool, nil
+}
+
+// ModifyGTMPool updates a GTM pool
+func (b *BigIP) ModifyGTMPool(fullPath string, config *GtmPool, poolType string) error {
+	return b.put(config, uriGtm, "pool", poolType, fullPath)
+}
+
+// DeleteGTMPool removes a GTM pool
+func (b *BigIP) DeleteGTMPool(fullPath string, poolType string) error {
+	return b.delete(uriGtm, "pool", poolType, fullPath)
+}
+
+func (b *BigIP) CreateGTMWideIP(config *GTMWideIP, recordType string) error {
+	return b.post(config, uriGtm, uriWideIp, recordType)
+}
+
+func (b *BigIP) DeleteGTMWideIP(fullPath string, recordType string) error {
+	return b.delete(uriGtm, uriWideIp, recordType, fullPath)
+}
+func (b *BigIP) ModifyGTMWideIP(fullPath string, config *GTMWideIP, recordType string) error {
+	return b.put(config, uriGtm, uriWideIp, recordType, fullPath)
+}
+
+// GetGTMWideIP get's a WideIP by name
+func (b *BigIP) GetGTMWideIP(name string, recordType string) (*GTMWideIP, error) {
+	var w GTMWideIP
+
+	err, ok := b.getForEntity(&w, uriGtm, uriWideIp, string(recordType), name)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, nil
+	}
+	return &w, nil
+}
+
+// CreateGTMDatacenter creates a new GTM datacenter
+func (b *BigIP) CreateGTMDatacenter(config *GTMDatacenter) error {
+	return b.post(config, uriGtm, uriDatacenter)
+}
+
+// GetGTMDatacenter retrieves a GTM datacenter by full path
+func (b *BigIP) GetGTMDatacenter(fullPath string) (*GTMDatacenter, error) {
+	var dc GTMDatacenter
+	err, ok := b.getForEntity(&dc, uriGtm, uriDatacenter, fullPath)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, nil
+	}
+	return &dc, nil
+}
+
+// ModifyGTMDatacenter updates a GTM datacenter
+func (b *BigIP) ModifyGTMDatacenter(fullPath string, config *GTMDatacenter) error {
+	return b.put(config, uriGtm, uriDatacenter, fullPath)
+}
+
+// DeleteGTMDatacenter removes a GTM datacenter
+func (b *BigIP) DeleteGTMDatacenter(fullPath string) error {
+	return b.delete(uriGtm, uriDatacenter, fullPath)
+}
+
+// GTMProberPool represents a GTM prober pool
+// (/mgmt/tm/gtm/prober-pool), referenced by GTMDatacenter.ProberPool when
+// ProberPreference is "pool".
+type GTMProberPool struct {
+	Name      string `json:"name,omitempty"`
+	Partition string `json:"partition,omitempty"`
+	FullPath  string `json:"fullPath,omitempty"`
+}
+
+// CreateGTMProberPool creates a new GTM prober pool
+func (b *BigIP) CreateGTMProberPool(config *GTMProberPool) error {
+	return b.post(config, uriGtm, uriProberPool)
+}
+
+// GetGTMProberPool retrieves a GTM prober pool by full path
+func (b *BigIP) GetGTMProberPool(fullPath string) (*GTMProberPool, error) {
+	var pp GTMProberPool
+	err, ok := b.getForEntity(&pp, uriGtm, uriProberPool, fullPath)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, nil
+	}
+	return &pp, nil
+}
+
+// DeleteGTMProberPool removes a GTM prober pool
+func (b *BigIP) DeleteGTMProberPool(fullPath string) error {
+	return b.delete(uriGtm, uriProberPool, fullPath)
+}
+
+// GTMTopologyRecord represents a GTM topology record
+type GTMTopologyRecord struct {
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Order       int    `json:"order"`
+	Score       int    `json:"score"`
+}
+
+type GTMTopologyRecords struct {
+	Items []GTMTopologyRecord `json:"items"`
+}
+
+// GTMRegion represents a GTM topology region
+type GTMRegion struct {
+	Name       string            `json:"name,omitempty"`
+	Partition  string            `json:"partition,omitempty"`
+	FullPath   string            `json:"fullPath,omitempty"`
+	Generation int               `json:"generation,omitempty"`
+	Members    []GTMRegionMember `json:"regionMembers"`
+}
+
+type GTMRegions struct {
+	Items []GTMRegion `json:"items"`
+}
+
+// GTMRegionMember represents a member entry in a GTM region
+type GTMRegionMember struct {
+	Name string `json:"name,omitempty"`
+}
+
+// CreateGTMTopologyRecord creates a new GTM topology record
+func (b *BigIP) CreateGTMTopologyRecord(config *GTMTopologyRecord) error {
+	return b.post(config, uriGtm, uriTopology)
+}
+
+// GetGTMTopologyRecord retrieves a GTM topology record by its description
+func (b *BigIP) GetGTMTopologyRecord(description string) (*GTMTopologyRecord, error) {
+	var record GTMTopologyRecord
+	err, ok := b.getForEntity(&record, uriGtm, uriTopology, description)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, nil
+	}
+	return &record, nil
+}
+
+// ModifyGTMTopologyRecord updates a GTM topology record
+func (b *BigIP) ModifyGTMTopologyRecord(description string, config *GTMTopologyRecord) error {
+	return b.put(config, uriGtm, uriTopology, description)
+}
+
+// DeleteGTMTopologyRecord removes a GTM topology record
+func (b *BigIP) DeleteGTMTopologyRecord(description string) error {
+	return b.delete(uriGtm, uriTopology, description)
+}
+
+// CreateGTMRegion creates a new GTM topology region
+func (b *BigIP) CreateGTMRegion(config *GTMRegion) error {
+	return b.post(config, uriGtm, uriRegion)
+}
+
+// GetGTMRegion retrieves a GTM topology region by full path
+func (b *BigIP) GetGTMRegion(fullPath string) (*GTMRegion, error) {
+	var region GTMRegion
+	err, ok := b.getForEntity(&region, uriGtm, uriRegion, fullPath)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, nil
+	}
+	return &region, nil
+}
+
+// ModifyGTMRegion updates a GTM topology region
+func (b *BigIP) ModifyGTMRegion(fullPath string, config *GTMRegion) error {
+	return b.put(config, uriGtm, uriRegion, fullPath)
+}
+
+// DeleteGTMRegion removes a GTM topology region
+func (b *BigIP) DeleteGTMRegion(fullPath string) error {
+	return b.delete(uriGtm, uriRegion, fullPath)
+}
+
+// func (b *BigIP) GetDatacenters() (*GTMDatacenter, error) {
+// 	var datacenter GTMDatacenter
+// 	err, _ := b.getForEntity(&datacenter, uriGtm, uriDatacenter)
+
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return &datacenter, nil
+// }
+
+// func (b *BigIP) CreateDatacenter(name, description, contact, app_service string, enabled, disabled bool, prober_pool string) error {
+// 	config := &GTMDatacenter{
+// 		Name:        name,
+// 		Description: description,
+// 		Contact:     contact,
+// 		App_service: app_service,
+// 		Enabled:     enabled,
+// 		Disabled:    disabled,
+// 		Prober_pool: prober_pool,
+// 	}
+// 	return b.post(config, uriGtm, uriDatacenter)
+// }
+
+// func (b *BigIP) ModifyDatacenter(*GTMDatacenter) error {
+// 	return b.patch(uriGtm, uriDatacenter)
+// }
+
+// func (b *BigIP) DeleteDatacenter(name string) error {
+// 	return b.delete(uriGtm, uriDatacenter, name)
+// }

@@ -345,7 +345,7 @@ func TestAccBigipLtmPolicy_Issue132_c(t *testing.T) {
 	resName := fmt.Sprintf("%s.%s", "bigip_ltm_policy", "test-policy-issue132-c")
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
-			testAcctPreCheck(t)
+			testAcctPreCheckTestPartition(t)
 		},
 		Providers:    testAccProviders,
 		CheckDestroy: testCheckPolicysDestroyed,
@@ -393,7 +393,7 @@ func TestAccBigipLtmPolicy_Issue634(t *testing.T) {
 	resName := fmt.Sprintf("%s.%s", "bigip_ltm_policy", "test-policy-issue634")
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
-			testAcctPreCheck(t)
+			testAcctPreCheckTestPartitionWithA1Folder(t)
 		},
 		Providers:    testAccProviders,
 		CheckDestroy: testCheckPolicysDestroyed,
@@ -417,7 +417,7 @@ func TestAccBigipLtmPolicy_Issue634_a(t *testing.T) {
 	resName := fmt.Sprintf("%s.%s", "bigip_ltm_policy", "test-policy-issue634-a")
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
-			testAcctPreCheck(t)
+			testAcctPreCheckTestPartition(t)
 		},
 		Providers:    testAccProviders,
 		CheckDestroy: testCheckPolicysDestroyed,
@@ -460,11 +460,16 @@ func TestAccBigipLtmPolicy_Issue648(t *testing.T) {
 }
 func TestAccBigipLtmPolicyIssue737(t *testing.T) {
 	t.Parallel()
-	TestPolicyName = "/Common/testpolicy-issue-737"
-	resName := fmt.Sprintf("%s.%s", "bigip_ltm_policy", "testpolicy-issue-737")
+	// testaccbigipltmpoolicyissue737's config creates a policy named
+	// "/Common/f5-policy" (resource label "policy"), not
+	// "/Common/testpolicy-issue-737" -- TestPolicyName/resName here must
+	// match what the config actually creates, not the test function's own
+	// name.
+	policyName := "/Common/f5-policy"
+	resName := fmt.Sprintf("%s.%s", "bigip_ltm_policy", "policy")
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
-			testAcctPreCheck(t)
+			testAcctPreCheckLtmPoolsAndWafPolicy("/Common/pool1", "/Common/pool2", "/Common/pool3")(t)
 		},
 		Providers:    testAccProviders,
 		CheckDestroy: testCheckPolicysDestroyed,
@@ -472,9 +477,8 @@ func TestAccBigipLtmPolicyIssue737(t *testing.T) {
 			{
 				Config: testaccbigipltmpoolicyissue737(),
 				Check: resource.ComposeTestCheckFunc(
-					testCheckPolicyExists(TestPolicyName),
-					testCheckPolicyExists(TestPolicyName),
-					resource.TestCheckResourceAttr(resName, "name", TestPolicyName),
+					testCheckPolicyExists(policyName),
+					resource.TestCheckResourceAttr(resName, "name", policyName),
 					resource.TestCheckResourceAttr(resName, "strategy", "first-match"),
 				),
 			},
@@ -563,6 +567,40 @@ func TestAccBigipLtmPolicy_import_newpoolbehavior(t *testing.T) {
 				ResourceName:      TestPolicyName,
 				ImportState:       false,
 				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func TestAccBigipLtmPolicy_Issue1128(t *testing.T) {
+	t.Parallel()
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			testAcctPreCheck(t)
+		},
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckPolicysDestroyed,
+		Steps: []resource.TestStep{
+			{
+				// Step 1: Create policy with 3 rules
+				Config: testaccbigipltmpolicyIssue1128Step1(),
+				Check: resource.ComposeTestCheckFunc(
+					testCheckPolicyExists("/Common/test-policy-issue1128"),
+					resource.TestCheckResourceAttr("bigip_ltm_policy.test-policy-issue1128", "rule.#", "3"),
+					resource.TestCheckResourceAttr("bigip_ltm_policy.test-policy-issue1128", "rule.0.name", "rule1"),
+					resource.TestCheckResourceAttr("bigip_ltm_policy.test-policy-issue1128", "rule.1.name", "rule2"),
+					resource.TestCheckResourceAttr("bigip_ltm_policy.test-policy-issue1128", "rule.2.name", "default-rule"),
+				),
+			},
+			{
+				// Step 2: Remove the middle rule - this is the bug scenario
+				Config: testaccbigipltmpolicyIssue1128Step2(),
+				Check: resource.ComposeTestCheckFunc(
+					testCheckPolicyExists("/Common/test-policy-issue1128"),
+					resource.TestCheckResourceAttr("bigip_ltm_policy.test-policy-issue1128", "rule.#", "2"),
+					resource.TestCheckResourceAttr("bigip_ltm_policy.test-policy-issue1128", "rule.0.name", "rule1"),
+					resource.TestCheckResourceAttr("bigip_ltm_policy.test-policy-issue1128", "rule.1.name", "default-rule"),
+				),
 			},
 		},
 	})
@@ -786,6 +824,93 @@ func testaccbigipltmpoolicyissue648() string {
 		  }
 		}`
 	return tfConfig
+}
+
+func testaccbigipltmpolicyIssue1128Step1() string {
+	return `
+resource "bigip_ltm_pool" "pool1-issue1128" {
+  name = "/Common/pool1-issue1128"
+}
+resource "bigip_ltm_pool" "pool2-issue1128" {
+  name = "/Common/pool2-issue1128"
+}
+resource "bigip_ltm_policy" "test-policy-issue1128" {
+  depends_on = [bigip_ltm_pool.pool1-issue1128, bigip_ltm_pool.pool2-issue1128]
+  name       = "/Common/test-policy-issue1128"
+  strategy   = "first-match"
+  requires   = ["http"]
+  controls   = ["forwarding"]
+  rule {
+    name = "rule1"
+    condition {
+      http_host = true
+      equals    = true
+      values    = ["host1"]
+    }
+    action {
+      forward    = true
+      connection = false
+      pool       = "/Common/pool1-issue1128"
+    }
+  }
+  rule {
+    name = "rule2"
+    condition {
+      http_host = true
+      equals    = true
+      values    = ["host2"]
+    }
+    action {
+      forward    = true
+      connection = false
+      pool       = "/Common/pool2-issue1128"
+    }
+  }
+  rule {
+    name = "default-rule"
+    action {
+      shutdown = true
+    }
+  }
+}
+	`
+}
+
+func testaccbigipltmpolicyIssue1128Step2() string {
+	return `
+resource "bigip_ltm_pool" "pool1-issue1128" {
+  name = "/Common/pool1-issue1128"
+}
+resource "bigip_ltm_pool" "pool2-issue1128" {
+  name = "/Common/pool2-issue1128"
+}
+resource "bigip_ltm_policy" "test-policy-issue1128" {
+  depends_on = [bigip_ltm_pool.pool1-issue1128, bigip_ltm_pool.pool2-issue1128]
+  name       = "/Common/test-policy-issue1128"
+  strategy   = "first-match"
+  requires   = ["http"]
+  controls   = ["forwarding"]
+  rule {
+    name = "rule1"
+    condition {
+      http_host = true
+      equals    = true
+      values    = ["host1"]
+    }
+    action {
+      forward    = true
+      connection = false
+      pool       = "/Common/pool1-issue1128"
+    }
+  }
+  rule {
+    name = "default-rule"
+    action {
+      shutdown = true
+    }
+  }
+}
+	`
 }
 
 func testaccbigipltmpoolicyissue737() string {

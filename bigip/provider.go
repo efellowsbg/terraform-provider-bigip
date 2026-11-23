@@ -11,12 +11,15 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"log"
+	"math/big"
 	"reflect"
 	"regexp"
 	"strings"
 	"time"
 
 	bigip "github.com/efellowsbg/go-bigip"
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"golang.org/x/text/cases"
@@ -124,6 +127,20 @@ func Provider() *schema.Provider {
 			"bigip_fast_azure_service_discovery":  dataSourceBigipFastAzureServiceDiscovery(),
 			"bigip_fast_gce_service_discovery":    dataSourceBigipFastGceServiceDiscovery(),
 			"bigip_as3_device_information":        dataSourceBigipAs3(),
+			"bigip_gtm_datacenter":                dataSourceBigipGtmDatacenter(),
+			"bigip_gtm_server":                    dataSourceBigipGtmServer(),
+			"bigip_net_vlan":                      dataSourceBigipNetVlan(),
+			"bigip_net_vlans":                     dataSourceBigipNetVlans(),
+			"bigip_net_self":                      dataSourceBigipNetSelf(),
+			"bigip_net_selfips":                   dataSourceBigipNetSelfips(),
+			"bigip_net_route":                     dataSourceBigipNetRoute(),
+			"bigip_net_routes":                    dataSourceBigipNetRoutes(),
+			"bigip_net_interfaces":                dataSourceBigipNetInterfaces(),
+			"bigip_net_trunk":                     dataSourceBigipNetTrunk(),
+			"bigip_net_trunks":                    dataSourceBigipNetTrunks(),
+			"bigip_sys_dns":                       dataSourceBigipSysDns(),
+			"bigip_sys_ntp":                       dataSourceBigipSysNtp(),
+			"bigip_sys_version":                   dataSourceBigipSysVersion(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"bigip_cm_device":                       resourceBigipCmDevice(),
@@ -167,6 +184,12 @@ func Provider() *schema.Provider {
 			"bigip_sys_ifile":                       resourceBigipSysIfile(),
 			"bigip_sys_snmp":                        resourceBigipSysSnmp(),
 			"bigip_sys_snmp_traps":                  resourceBigipSysSnmpTraps(),
+			"bigip_sys_syslog":                      resourceBigipSysSyslog(),
+			"bigip_auth_ldap":                       resourceBigipAuthLdap(),
+			"bigip_auth_radius":                     resourceBigipAuthRadius(),
+			"bigip_auth_radius_server":              resourceBigipAuthRadiusServer(),
+			"bigip_auth_tacacs":                     resourceBigipAuthTacacs(),
+			"bigip_auth_user":                       resourceBigipAuthUser(),
 			"bigip_sys_bigiplicense":                resourceBigipSysBigiplicense(),
 			"bigip_as3":                             resourceBigipAs3(),
 			"bigip_do":                              resourceBigipDo(),
@@ -198,6 +221,17 @@ func Provider() *schema.Provider {
 			"bigip_ltm_profile_rewrite":             resourceBigipLtmRewriteProfile(),
 			"bigip_ltm_profile_rewrite_uri_rules":   resourceBigipLtmRewriteProfileUriRules(),
 			"bigip_saas_bot_defense_profile":        resourceBigipSaasBotDefenseProfile(),
+			"bigip_gtm_wideip":                      resourceBigipGtmWideip(),
+			"bigip_gtm_topology_record":             resourceBigipGtmTopologyRecord(),
+			"bigip_gtm_topology_region":             resourceBigipGtmTopologyRegion(),
+			"bigip_gtm_pool":                        resourceBigipGtmPool(),
+			"bigip_gtm_datacenter":                  resourceBigipGtmDatacenter(),
+			"bigip_gtm_server":                      resourceBigipGtmServer(),
+			"bigip_gtm_monitor_http":                resourceBigipGtmMonitorHttp(),
+			"bigip_gtm_monitor_https":               resourceBigipGtmMonitorHttps(),
+			"bigip_gtm_monitor_tcp":                 resourceBigipGtmMonitorTcp(),
+			"bigip_gtm_monitor_postgresql":          resourceBigipGtmMonitorPostgresql(),
+			"bigip_gtm_monitor_bigip":               resourceBigipGtmMonitorBigip(),
 		},
 	}
 	p.ConfigureContextFunc = func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
@@ -358,4 +392,107 @@ func hashForState(value string) string {
 	}
 	hash := sha1.Sum([]byte(strings.TrimSpace(value)))
 	return hex.EncodeToString(hash[:])
+}
+
+// ctyValIsSet returns true if a cty.Value is non-null and fully resolved (known).
+func ctyValIsSet(val cty.Value) bool {
+	return !val.IsNull() && val.IsKnown()
+}
+
+// rawConfigAttrIsSet reports whether the practitioner's raw HCL config (not
+// state, not a Computed-backfilled value) actually sets a top-level
+// attribute. This is the safe way to answer "did the user write this in
+// their .tf" for an Optional+Computed field, where d.GetOk cannot
+// distinguish that from "Read backfilled this into state from an
+// inherited/computed device value" -- see resource_bigip_ltm_profile_ssl_client.go's
+// tm_options handling for the motivating case (SFDC #01262589).
+//
+// LIMITATION: attr must be a single top-level attribute name (e.g.
+// "tm_options"), not a dotted path into a nested block/list/map (e.g.
+// "block.0.nested_attr"). cty.Value.GetAttr takes a literal attribute name,
+// not a path expression -- it does not split on "." or descend through
+// nested objects/lists a segment at a time. Passing a dotted string is
+// treated as one (nonexistent) attribute name and PANICS with "value has no
+// attribute of that name" (verified: cty.ObjectVal(...).GetAttr("a.b")
+// panics even when top-level attribute "a" exists), it does not simply
+// return false. Extend this helper (split attr on "." and walk GetAttr per
+// segment, short-circuiting via ctyValIsSet -- and, for list/set-typed
+// intermediate segments, indexing into AsValueSlice() -- at each step) if a
+// nested case is ever needed; do not call rawConfig.GetAttr with a dotted
+// string expecting it to walk the path.
+//
+// This guards against a cty panic: cty.Value.GetAttr on a null *object*
+// value panics (it is not simply a no-op returning null), which is exactly
+// what d.GetRawConfig() returns whenever no raw config is available at all
+// -- notably including every existing unit test built via
+// schema.TestResourceDataRaw, and legitimate real-world cases such as
+// terraform destroy, where there is no current .tf config to read. Callers
+// must go through this helper (or otherwise check d.GetRawConfig().IsNull()
+// themselves) rather than calling GetAttr directly, matching the same
+// IsNull guard the SDK's own GetRawConfigAt performs internally before
+// walking the raw config.
+func rawConfigAttrIsSet(d *schema.ResourceData, attr string) bool {
+	rawConfig := d.GetRawConfig()
+	if rawConfig.IsNull() {
+		return false
+	}
+	return ctyValIsSet(rawConfig.GetAttr(attr))
+}
+
+// ctyObjectToMap converts a cty.Value of object type to a map[string]interface{},
+// suitable for passing to mapEntity. This reads directly from the raw Terraform
+// config, avoiding stale state contamination that occurs with TypeList index shifts.
+// If a schema is provided, Default values are applied for any null attributes.
+func ctyObjectToMap(val cty.Value, schemaMap map[string]*schema.Schema) map[string]interface{} {
+	if !ctyValIsSet(val) {
+		return nil
+	}
+	if !val.Type().IsObjectType() && !val.Type().IsMapType() {
+		log.Printf("[WARN] ctyObjectToMap: expected object or map type, got %s", val.Type().FriendlyName())
+		return nil
+	}
+	result := make(map[string]interface{})
+	for name, v := range val.AsValueMap() {
+		if !ctyValIsSet(v) {
+			if schemaMap != nil {
+				if s, ok := schemaMap[name]; ok && s.Default != nil {
+					result[name] = s.Default
+				}
+			}
+			continue
+		}
+		switch v.Type() {
+		case cty.String:
+			result[name] = v.AsString()
+		case cty.Bool:
+			result[name] = v.True()
+		case cty.Number:
+			// Mirrors the SDK's internal hcl2shim.ConfigValueFromHCL2 logic:
+			// use int if exactly representable, otherwise float64.
+			f := v.AsBigFloat()
+			if i, acc := f.Int64(); acc == big.Exact {
+				const maxInt = int(^uint(0) >> 1)
+				const minInt = -maxInt - 1
+				if i <= int64(maxInt) && i >= int64(minInt) {
+					result[name] = int(i)
+					continue
+				}
+			}
+			f64, _ := f.Float64()
+			result[name] = f64
+		default:
+			if v.Type().IsListType() && v.Type().ElementType() == cty.String {
+				strs := make([]interface{}, 0, v.LengthInt())
+				for _, sv := range v.AsValueSlice() {
+					if ctyValIsSet(sv) {
+						strs = append(strs, sv.AsString())
+					}
+				}
+				result[name] = strs
+			} else {
+				log.Printf("[WARN] ctyObjectToMap: unhandled type %s for attribute %q", v.Type().FriendlyName(), name)
+			}
+		}
+	}
+	return result
 }

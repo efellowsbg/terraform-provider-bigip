@@ -692,6 +692,10 @@ func TestAccBigipLtmProfileClientSsl_ChildInheritanceSurvivesUnrelatedUpdate(t *
 }
 
 func testaccbigipltmprofileclientsslInheritanceConfig(parentName, childName, childAuthenticate string) string {
+	// Build the parent reference in Go rather than emitting two %[N]s
+	// placeholders inside one unquoted HCL value. terrafmt mangles a
+	// value such as %[1]s.%[2]s.name, which breaks `make tflint`.
+	parentRef := fmt.Sprintf("%s.%s", resName, parentName)
 	return fmt.Sprintf(`
 resource "%[1]s" "%[2]s" {
   name          = "/Common/%[2]s"
@@ -701,11 +705,11 @@ resource "%[1]s" "%[2]s" {
 
 resource "%[1]s" "%[3]s" {
   name          = "/Common/%[3]s"
-  defaults_from = %[1]s.%[2]s.name
+  defaults_from = %[5]s.name
   authenticate  = "%[4]s"
-  depends_on    = [%[1]s.%[2]s]
+  depends_on    = [%[5]s]
 }
-`, resName, parentName, childName, childAuthenticate)
+`, resName, parentName, childName, childAuthenticate, parentRef)
 }
 
 // TestAccBigipLtmProfileClientSsl_ChildInheritanceAuditOtherFields is the
@@ -761,6 +765,9 @@ func TestAccBigipLtmProfileClientSsl_ChildInheritanceAuditOtherFields(t *testing
 }
 
 func testaccbigipltmprofileclientsslInheritanceAuditConfig(parentName, childName, childSessionMirroring string) string {
+	// Same terrafmt limitation as the InheritanceConfig builder above:
+	// %[1]s.%[2]s.name inside an unquoted value gets mangled.
+	parentRef := fmt.Sprintf("%s.%s", resName, parentName)
 	return fmt.Sprintf(`
 resource "%[1]s" "%[2]s" {
   name                 = "/Common/%[2]s"
@@ -772,11 +779,11 @@ resource "%[1]s" "%[2]s" {
 
 resource "%[1]s" "%[3]s" {
   name              = "/Common/%[3]s"
-  defaults_from     = %[1]s.%[2]s.name
+  defaults_from     = %[5]s.name
   session_mirroring = "%[4]s"
-  depends_on        = [%[1]s.%[2]s]
+  depends_on        = [%[5]s]
 }
-`, resName, parentName, childName, childSessionMirroring)
+`, resName, parentName, childName, childSessionMirroring, parentRef)
 }
 
 // testCheckClientSslNoExplicitFields asserts, via "tmsh list" (the same

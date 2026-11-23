@@ -357,6 +357,10 @@ func TestAccBigipLtmProfileServerSsl_ChildInheritanceSurvivesUnrelatedUpdate(t *
 }
 
 func testaccbigipltmprofileserversslInheritanceConfig(parentName, childName, childAuthenticate string) string {
+	// Build the parent reference in Go rather than emitting two %[N]s
+	// placeholders inside one unquoted HCL value. terrafmt mangles a
+	// value such as %[1]s.%[2]s.name, which breaks `make tflint`.
+	parentRef := fmt.Sprintf("%s.%s", resNameserver, parentName)
 	return fmt.Sprintf(`
 resource "%[1]s" "%[2]s" {
   name          = "/Common/%[2]s"
@@ -366,11 +370,11 @@ resource "%[1]s" "%[2]s" {
 
 resource "%[1]s" "%[3]s" {
   name          = "/Common/%[3]s"
-  defaults_from = %[1]s.%[2]s.name
+  defaults_from = %[5]s.name
   authenticate  = "%[4]s"
-  depends_on    = [%[1]s.%[2]s]
+  depends_on    = [%[5]s]
 }
-`, resNameserver, parentName, childName, childAuthenticate)
+`, resNameserver, parentName, childName, childAuthenticate, parentRef)
 }
 
 // explicitServerSslOptionsLineRegexp mirrors explicitOptionsLineRegexp

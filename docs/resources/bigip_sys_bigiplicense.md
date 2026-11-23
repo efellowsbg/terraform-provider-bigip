@@ -14,8 +14,8 @@ description: |-
 
 ```hcl
 resource "bigip_sys_bigiplicense" "example" {
-  command           = "install"
-  registration_key  = "XXXXX-XXXXX-XXXXX-XXXXX-XXXXXXX"
+  command          = "install"
+  registration_key = "XXXXX-XXXXX-XXXXX-XXXXX-XXXXXXX"
 }
 ```
 

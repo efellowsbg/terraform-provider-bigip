@@ -300,9 +300,9 @@ func TestResourceBigipSysBigiplicenseDelete(t *testing.T) {
 func testBigipSysBigiplicenseInvalid(registrationKey string) string {
 	return fmt.Sprintf(`
 resource "bigip_sys_bigiplicense" "test-license" {
-  command           = "install"
-  registration_key  = "%s"
-  invalidkey        = "foo"
+  command          = "install"
+  registration_key = "%s"
+  invalidkey       = "foo"
 }
 `, registrationKey)
 }

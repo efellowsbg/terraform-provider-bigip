@@ -18,14 +18,14 @@ This is a singleton resource -- BIG-IP supports exactly one system LDAP configur
 
 ```hcl
 resource "bigip_auth_ldap" "example" {
-  servers        = ["ldap.example.com"]
-  port           = 636
-  bind_dn        = "cn=admin,dc=example,dc=com"
-  bind_pw        = var.ldap_bind_password
-  search_base_dn = "dc=example,dc=com"
+  servers         = ["ldap.example.com"]
+  port            = 636
+  bind_dn         = "cn=admin,dc=example,dc=com"
+  bind_pw         = var.ldap_bind_password
+  search_base_dn  = "dc=example,dc=com"
   login_attribute = "uid"
-  ssl            = "enabled"
-  ssl_check_peer = "enabled"
+  ssl             = "enabled"
+  ssl_check_peer  = "enabled"
 }
 ```
 

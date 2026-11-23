@@ -76,6 +76,7 @@ func resourceBigipLtmProfileHttp() *schema.Resource {
 			"encrypt_cookie_secret": {
 				Type:        schema.TypeString,
 				Optional:    true,
+				Sensitive:   true,
 				Description: "Specifies a passphrase for the cookie encryption. Note: Since it's a sensitive entity idempotency will fail for it in the update call.",
 			},
 			"fallback_host": {
@@ -315,14 +316,14 @@ func resourceBigipLtmProfileHttpRead(ctx context.Context, d *schema.ResourceData
 	log.Println("[INFO] Fetching HTTP  Profile " + name)
 
 	pp, err := client.GetHttpProfile(name)
+	if err != nil {
+		log.Printf("[ERROR] Unable to retrieve HTTP Profile  (%s) ", err)
+		return diag.FromErr(err)
+	}
 	if pp == nil {
 		log.Printf("[WARN] HTTP  Profile (%s) not found, removing from state", name)
 		d.SetId("")
 		return nil
-	}
-	if err != nil {
-		log.Printf("[ERROR] Unable to retrieve HTTP Profile  (%s) ", err)
-		return diag.FromErr(err)
 	}
 	_ = d.Set("name", name)
 	_ = d.Set("defaults_from", pp.DefaultsFrom)

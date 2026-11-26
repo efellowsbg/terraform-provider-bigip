@@ -30,7 +30,7 @@ resource "bigip_sys_failover" "bigip1_standby" {
 
 * `action` - (Required, ForceNew) `standby`, `offline` or `online`.
 * `traffic_group` - (Optional, ForceNew) With `standby`, fail over only this traffic group. By default, all traffic groups fail over.
-* `wait_for_state` - (Optional, ForceNew) Wait until the device reports `STANDBY`, `FORCED OFFLINE`, or a state other than `FORCED OFFLINE` (for `online`). Ignored when `traffic_group` is set. Default `true`.
+* `wait_for_state` - (Optional, ForceNew) Wait until the action has taken effect. Without `traffic_group`: until the device reports `STANDBY`, `FORCED OFFLINE`, or a state other than `FORCED OFFLINE` (for `online`). With `traffic_group`: until another device is active for that traffic group. Default `true`.
 * `triggers` - (Optional, ForceNew) Map of arbitrary values; any change re-runs the action.
 
 ## Attribute Reference

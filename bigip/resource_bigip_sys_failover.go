@@ -8,6 +8,7 @@ package bigip
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -20,8 +21,9 @@ import (
 )
 
 const (
-	uriSysFailover      = "sys/failover"
-	uriCmFailoverStatus = "cm/failover-status"
+	uriSysFailover         = "sys/failover"
+	uriCmFailoverStatus    = "cm/failover-status"
+	uriCmTrafficGroupStats = "cm/traffic-group/stats"
 )
 
 // resourceBigipSysFailover is an action resource that runs
@@ -96,9 +98,36 @@ func resourceBigipSysFailoverCreate(ctx context.Context, d *schema.ResourceData,
 	if tg != "" {
 		body["trafficGroup"] = tg
 	}
+	// With a traffic group, remember which device is active for it now; the
+	// wait below ends when a different device has taken it over.
+	var activeBefore string
+	if tg != "" {
+		if active, err := haTrafficGroupActive(client, tg); err == nil {
+			activeBefore = active
+		} else {
+			log.Printf("[WARN] reading traffic group %s before failover: %v", tg, err)
+		}
+	}
+
 	log.Printf("[INFO] Running sys failover %s %s", action, tg)
 	if _, err := haRequest(client, "POST", uriSysFailover, body); err != nil {
 		return diag.FromErr(fmt.Errorf("running sys failover %s: %w", action, err))
+	}
+
+	if d.Get("wait_for_state").(bool) && tg != "" {
+		err := haWaitFor(ctx, d.Timeout(schema.TimeoutCreate), "traffic group "+tg+" to move to another device", func() (bool, error) {
+			active, err := haTrafficGroupActive(client, tg)
+			if err != nil {
+				return false, err
+			}
+			if active == "" || active == activeBefore {
+				return false, fmt.Errorf("traffic group %s is active on %q", tg, active)
+			}
+			return true, nil
+		})
+		if err != nil {
+			return diag.FromErr(err)
+		}
 	}
 
 	if d.Get("wait_for_state").(bool) && tg == "" {
@@ -139,4 +168,41 @@ func resourceBigipSysFailoverRead(ctx context.Context, d *schema.ResourceData, m
 func resourceBigipSysFailoverDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	d.SetId("")
 	return nil
+}
+
+// haTrafficGroupActive returns the device that is active for the traffic group
+// ("" while none is), from cm traffic-group stats.
+func haTrafficGroupActive(client *bigip.BigIP, tg string) (string, error) {
+	resp, err := haRequest(client, "GET", uriCmTrafficGroupStats, nil)
+	if err != nil {
+		return "", err
+	}
+	var root haStatsEntry
+	if err := json.Unmarshal(resp, &root); err != nil {
+		return "", fmt.Errorf("decoding traffic group stats: %w", err)
+	}
+	want := haFullPath("Common", tg)
+	found := false
+	for _, e := range root.Entries {
+		if e.NestedStats == nil {
+			continue
+		}
+		f := map[string]string{}
+		for k, v := range e.NestedStats.Entries {
+			if v.Description != nil {
+				f[k] = *v.Description
+			}
+		}
+		if haFullPath("Common", f["trafficGroup"]) != want {
+			continue
+		}
+		found = true
+		if strings.EqualFold(f["failoverState"], "active") {
+			return f["deviceName"], nil
+		}
+	}
+	if !found {
+		return "", haStop(fmt.Errorf("traffic group %s not found", want))
+	}
+	return "", nil
 }

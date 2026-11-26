@@ -515,12 +515,55 @@ func TestHASysFailover(t *testing.T) {
 		t.Errorf("failover_state = %v", d.Get("failover_state"))
 	}
 
+	// With a traffic group: wait until another device is active for it.
+	tgActive := "/Common/a"
+	tgPolls := 0
+	f.on("POST", "sys/failover", func(b map[string]interface{}) (int, interface{}) {
+		mu.Lock()
+		defer mu.Unlock()
+		tgPolls = 0
+		return 200, map[string]interface{}{}
+	})
+	f.on("GET", "cm/traffic-group/stats", func(map[string]interface{}) (int, interface{}) {
+		mu.Lock()
+		defer mu.Unlock()
+		tgPolls++
+		if tgPolls > 2 { // the move takes a couple of polls
+			tgActive = "/Common/b"
+		}
+		entry := func(dev, state string) map[string]interface{} {
+			return map[string]interface{}{"nestedStats": map[string]interface{}{"entries": map[string]interface{}{
+				"trafficGroup":  map[string]interface{}{"description": "/Common/traffic-group-1"},
+				"deviceName":    map[string]interface{}{"description": dev},
+				"failoverState": map[string]interface{}{"description": state},
+			}}}
+		}
+		stA, stB := "standby", "standby"
+		if tgActive == "/Common/a" {
+			stA = "active"
+		} else {
+			stB = "active"
+		}
+		return 200, map[string]interface{}{"entries": map[string]interface{}{
+			"https://localhost/mgmt/tm/cm/traffic-group/~Common~traffic-group-1:~Common~a/stats": entry("/Common/a", stA),
+			"https://localhost/mgmt/tm/cm/traffic-group/~Common~traffic-group-1:~Common~b/stats": entry("/Common/b", stB),
+		}}
+	})
 	d2 := schema.TestResourceDataRaw(t, r.Schema, map[string]interface{}{"action": "standby", "traffic_group": "traffic-group-1"})
 	if diags := r.CreateContext(context.Background(), d2, f.client()); diags.HasError() {
 		t.Fatalf("create with traffic group: %v", diags)
 	}
 	if body := f.lastCall("POST", "sys/failover").Body; body["trafficGroup"] != "traffic-group-1" {
 		t.Errorf("trafficGroup not sent: %v", body)
+	}
+	if tgActive != "/Common/b" || tgPolls < 3 {
+		t.Errorf("did not wait for the traffic group to move: active=%s polls=%d", tgActive, tgPolls)
+	}
+
+	// Unknown traffic group: fail instead of waiting for the timeout.
+	d4 := schema.TestResourceDataRaw(t, r.Schema, map[string]interface{}{"action": "standby", "traffic_group": "no-such-tg"})
+	if diags := r.CreateContext(context.Background(), d4, f.client()); !diags.HasError() || !strings.Contains(diags[0].Summary, "not found") {
+		t.Errorf("expected not found error, got %v", diags)
 	}
 
 	d3 := schema.TestResourceDataRaw(t, r.Schema, map[string]interface{}{"action": "offline", "traffic_group": "traffic-group-1"})

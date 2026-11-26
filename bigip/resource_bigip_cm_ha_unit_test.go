@@ -366,20 +366,78 @@ func TestHATrafficGroupLifecycle(t *testing.T) {
 
 // ---------------------------------------------------------------- config sync
 
+// haSyncStatusResp builds a cm/sync-status response with detail lines.
+func haSyncStatusResp(status string, details ...string) map[string]interface{} {
+	det := map[string]interface{}{}
+	for i, line := range details {
+		det[fmt.Sprintf("https://localhost/mgmt/tm/cm/syncStatus/0/details/%d", i)] = map[string]interface{}{
+			"nestedStats": map[string]interface{}{"entries": map[string]interface{}{
+				"details": map[string]interface{}{"description": line},
+			}},
+		}
+	}
+	return map[string]interface{}{"entries": map[string]interface{}{
+		"https://localhost/mgmt/tm/cm/sync-status/0": map[string]interface{}{"nestedStats": map[string]interface{}{"entries": map[string]interface{}{
+			"status": map[string]interface{}{"description": status},
+			"https://localhost/mgmt/tm/cm/syncStatus/0/details": map[string]interface{}{
+				"nestedStats": map[string]interface{}{"entries": det},
+			},
+		}}},
+	}}
+}
+
+// haGroupStatsResp builds a cm/device-group/<g>/stats response, one member per
+// device -> commit time.
+func haGroupStatsResp(group string, commits map[string]string) map[string]interface{} {
+	entries := map[string]interface{}{}
+	for dev, t := range commits {
+		entries["https://localhost/mgmt/tm/cm/device-group/~Common~"+group+"/~Common~"+dev+"/stats"] = map[string]interface{}{
+			"nestedStats": map[string]interface{}{"entries": map[string]interface{}{
+				"device":             map[string]interface{}{"description": "/Common/" + dev},
+				"devicegroup":        map[string]interface{}{"description": "/Common/" + group},
+				"commitIdOriginator": map[string]interface{}{"description": "/Common/a"},
+				"commitIdTime":       map[string]interface{}{"description": t},
+			}},
+		}
+	}
+	return map[string]interface{}{"entries": entries}
+}
+
 func TestHAConfigSync(t *testing.T) {
 	haFastPolling(t)
+	oldRetry := haSyncRetryAfter
+	haSyncRetryAfter = 30 * time.Millisecond
+	t.Cleanup(func() { haSyncRetryAfter = oldRetry })
+
 	f := newHAFakeBigIP(t)
 	var mu sync.Mutex
-	polls := 0
-	f.on("POST", "cm", ok(map[string]interface{}{}))
+	runs := 0
+	// The first sync command is "skipped" (30 second rule); the second applies.
+	f.on("POST", "cm", func(map[string]interface{}) (int, interface{}) {
+		mu.Lock()
+		defer mu.Unlock()
+		runs++
+		return 200, map[string]interface{}{}
+	})
+	groupStats := "cm/device-group/~Common~dg-gtp/stats"
+	f.on("GET", groupStats, func(map[string]interface{}) (int, interface{}) {
+		mu.Lock()
+		defer mu.Unlock()
+		peer := "t0"
+		if runs >= 2 {
+			peer = "t1"
+		}
+		return 200, haGroupStatsResp("dg-gtp", map[string]string{"a": "t1", "b": peer})
+	})
+	// An unrelated built-in group stays pending; it must not block the wait.
 	f.on("GET", "cm/sync-status", func(map[string]interface{}) (int, interface{}) {
 		mu.Lock()
 		defer mu.Unlock()
-		polls++
-		if polls < 3 {
-			return 200, haStats(map[string]string{"status": "Syncing", "summary": "busy"})
+		lines := []string{"b: connected", "datasync-global-dg (Changes Pending): Changes pending"}
+		if runs < 2 {
+			lines = append(lines, "dg-gtp (Changes Pending): Changes pending")
 		}
-		return 200, haStats(map[string]string{"status": "In Sync", "summary": "All devices in the device group are in sync"})
+		return 200, haSyncStatusResp("Changes Pending", lines...)
 	})
 
 	r := resourceBigipCmConfigSync()
@@ -391,8 +449,11 @@ func TestHAConfigSync(t *testing.T) {
 	if body["command"] != "run" || body["utilCmdArgs"] != "config-sync to-group dg-gtp" {
 		t.Errorf("unexpected sync body %v", body)
 	}
-	if d.Get("sync_status") != "In Sync" || polls < 3 {
-		t.Errorf("did not wait for In Sync: status=%v polls=%d", d.Get("sync_status"), polls)
+	if runs < 2 {
+		t.Errorf("skipped sync was not re-sent: runs=%d", runs)
+	}
+	if d.Get("sync_status") != "In Sync" {
+		t.Errorf("sync_status = %v, want In Sync (other groups pending must not matter)", d.Get("sync_status"))
 	}
 
 	if cmd, _ := haSyncCommand("dg", "to-group", true); cmd != "config-sync force-full-load-push to-group dg" {
@@ -402,12 +463,22 @@ func TestHAConfigSync(t *testing.T) {
 		t.Error("force_full_load_push with from-group must fail")
 	}
 
-	// A sync failure is reported instead of waiting for the timeout.
-	f.on("GET", "cm/sync-status", ok(haStats(map[string]string{"status": "Sync Failure", "summary": "boom"})))
+	// A sync failure of the group is reported instead of waiting for the timeout.
+	f.on("GET", groupStats, ok(haGroupStatsResp("dg-gtp", map[string]string{"a": "t2", "b": "t1"})))
+	f.on("GET", "cm/sync-status", ok(haSyncStatusResp("Sync Failure", "dg-gtp (Sync Failure): boom")))
 	d2 := schema.TestResourceDataRaw(t, r.Schema, map[string]interface{}{"device_group": "dg-gtp"})
 	diags := r.CreateContext(context.Background(), d2, f.client())
 	if !diags.HasError() || !strings.Contains(diags[0].Summary, "Sync Failure") {
 		t.Errorf("expected Sync Failure error, got %v", diags)
+	}
+
+	// Detail parsing: full path names, and groups not listed.
+	resp, _ := json.Marshal(haSyncStatusResp("Changes Pending", "/Common/dg-x (Awaiting Initial Sync): new"))
+	if st, txt, _ := haSyncGroupDetail(resp, "dg-x"); st != "Awaiting Initial Sync" || txt != "new" {
+		t.Errorf("detail = %q %q", st, txt)
+	}
+	if st, _, _ := haSyncGroupDetail(resp, "dg-y"); st != "" {
+		t.Errorf("unlisted group status = %q, want empty", st)
 	}
 }
 

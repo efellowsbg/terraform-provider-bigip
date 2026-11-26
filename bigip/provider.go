@@ -145,6 +145,11 @@ func Provider() *schema.Provider {
 		ResourcesMap: map[string]*schema.Resource{
 			"bigip_cm_device":                       resourceBigipCmDevice(),
 			"bigip_cm_devicegroup":                  resourceBigipCmDevicegroup(),
+			"bigip_cm_device_trust":                 resourceBigipCmDeviceTrust(),
+			"bigip_cm_device_ha":                    resourceBigipCmDeviceHa(),
+			"bigip_cm_traffic_group":                resourceBigipCmTrafficGroup(),
+			"bigip_cm_config_sync":                  resourceBigipCmConfigSync(),
+			"bigip_sys_failover":                    resourceBigipSysFailover(),
 			"bigip_net_route":                       resourceBigipNetRoute(),
 			"bigip_net_dns_resolver":                resourceBigipNetDnsResolver(),
 			"bigip_net_selfip":                      resourceBigipNetSelfIP(),
